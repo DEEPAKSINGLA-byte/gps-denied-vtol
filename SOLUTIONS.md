@@ -9,7 +9,7 @@ When satellite-based positioning systems (GNSS/GPS) are unavailable due to signa
 
 ### Solution 1: Visual-Inertial Odometry (VIO)
 * **Mechanism:** Fuses high-frequency inertial measurements ($100-500\text{ Hz}$ IMU accelerometer and gyroscope data) with monocular or stereo camera streams ($30-60\text{ FPS}$) via an Extended Kalman Filter (EKF) or Factor Graph optimization (e.g., VINS-Mono, OKVIS, ROVIO).
-* **Key Advantages:** Lightweight, low-cost, fully passive, does not broadcast RF signals.
+* **Key Advantages:** Lightweight, fully passive, does not broadcast RF signals.
 * **Primary Constraints:** Fails in complete darkness, low-texture surfaces (e.g., plain white walls), or heavy fog/dust.
 
 ### Solution 2: Visual SLAM (Simultaneous Localization and Mapping)
@@ -27,19 +27,9 @@ When satellite-based positioning systems (GNSS/GPS) are unavailable due to signa
 * **Key Advantages:** Provides absolute coordinate correction without active RF broadcasts.
 * **Primary Constraints:** Requires pre-existing, high-resolution satellite imagery; fails under significant seasonal or cloud-cover variation.
 
-### Solution 5: Event-Based Camera Odometry (Neuromorphic Vision)
-* **Mechanism:** Employs neuromorphic event cameras (silicon retinas) that transmit asynchronous pixel-level intensity changes at sub-millisecond temporal resolution ($>1\text{ MHz}$ equivalent) instead of standard image frames.
-* **Key Advantages:** Zero motion blur, extremely low latency, massive dynamic range ($>120\text{ dB}$).
-* **Primary Constraints:** Requires specialized algorithmic stacks; lower spatial resolution compared to standard RGB sensors.
-
 ---
 
 ## 2. LiDAR & Active Ranging Systems
-
-### Solution 6: 3D LiDAR SLAM
-* **Mechanism:** Employs multi-beam spinning or solid-state LiDAR sensors to emit thousands to millions of laser pulses per second, processing 3D point clouds via Iterative Closest Point (ICP) or Generalized ICP algorithms (e.g., LIO-SAM, FAST-LIO2).
-* **Key Advantages:** Highly accurate, immune to light level variation (works in pitch darkness), builds dense metric maps.
-* **Primary Constraints:** Higher weight and power consumption (SWaP footprint); degraded by airborne dust, smoke, or rain.
 
 ### Solution 7: FMCW Millimeter-Wave Radar Odometry
 * **Mechanism:** Uses Frequency-Modulated Continuous-Wave (FMCW) mmWave radar (e.g., $77-79\text{ GHz}$) to measure range, velocity (via Doppler shift), and angle of reflections from surrounding terrain.
@@ -98,10 +88,6 @@ When satellite-based positioning systems (GNSS/GPS) are unavailable due to signa
 
 ## 5. Inertial & Physical Tether Solutions
 
-### Solution 16: Tactical-Grade Fiber-Optic Gyroscope (FOG) / Ring Laser Gyroscope (RLG) INS
-* **Mechanism:** Uses high-precision, optical-interference-based gyroscopes and accelerometers that exhibit near-zero bias instability and thermal drift compared to standard MEMS sensors.
-* **Key Advantages:** Complete immunity to external jamming, spoofing, weather, and lighting.
-* **Primary Constraints:** Significant cost, weight, and power penalties (high SWaP-C); drift remains unconstrained over extended flight durations without zero-velocity updates.
 
 ### Solution 17: Tethered Power and Data Cable System
 * **Mechanism:** Maintains a physical high-tensile micro-tether connecting the UAV to a ground station, delivering continuous power, data communications, and mechanical strain monitoring.
@@ -114,13 +100,6 @@ When satellite-based positioning systems (GNSS/GPS) are unavailable due to signa
 * **Primary Constraints:** Only applies during intermittent ground contact or perching maneuvers.
 
 ---
-
-## 6. Multi-UAV Collaborative & AI Approaches
-
-### Solution 19: Collaborative Swarm-Relative Localization
-* **Mechanism:** Multiple UAVs share relative inter-robot distance measurements (via UWB ranging, optical tracking, or mutual radar reflections) over a local mesh network, performing decentralized joint state estimation (e.g., Multi-Agent Factor Graphs).
-* **Key Advantages:** Increases system robustness; allows drones with functioning sensors to extend localization bounds to peer drones in denied zones.
-* **Primary Constraints:** Requires reliable inter-drone communications; increased bandwidth and network scaling complexity.
 
 ### Solution 20: Learning-Based Inertial / End-to-End Deep Odometry
 * **Mechanism:** Employs deep neural networks (e.g., CNN-LSTM or Transformer architectures) trained on large inertial datasets to learn complex motion dynamics, IMU noise profiles, and thermal biases directly from raw IMU data streams (e.g., IONet, RoNIN).
