@@ -107,7 +107,7 @@ Where:
 
 ### In Scope
 * Real-time Multi-Sensor Fusion (Visual-Inertial Odometry, LiDAR SLAM, Optical Flow).
-* Onboard edge computing (e.g., NVIDIA Jetson Orin Nano, Raspberry Pi Compute Module 4).
+* Onboard edge computing (e.g., Raspberry Pi Compute Module 4).
 * Closed-loop flight control integration via MAVLink / ROS 2 with PX4 or ArduPilot.
 
 ### Out of Scope
