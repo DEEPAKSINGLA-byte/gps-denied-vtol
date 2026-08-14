@@ -35,11 +35,11 @@
 
 | Resource | Description |
 | :--- | :--- |
-| 📄 [Problem Statement](PROBLEM_STATEMENT.md) | Formal problem definition, state-space math, MAP formulation, KPIs |
-| 💡 [Candidate Solutions](SOLUTIONS.md) | 15 hardware/software architectures for GPS-denied navigation |
-| 📊 [Quantitative Analysis](ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
-| 🧾 [Bill of Materials](BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
-| ☁️ [Google Drive — Documents](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) | All related documentation & design artifacts |
+| [Problem Statement](PROBLEM_STATEMENT.md) | Formal problem definition, state-space math, MAP formulation, KPIs |
+| [Candidate Solutions](SOLUTIONS.md) | 15 hardware/software architectures for GPS-denied navigation |
+| [Quantitative Analysis](ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
+| [Bill of Materials](BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
+| [Google Drive — Documents](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) | All related documentation & design artifacts |
 
 ---
 
@@ -49,8 +49,8 @@ Modern UAVs depend on GNSS (GPS/GLONASS/Galileo/BeiDou) for positioning. In bloc
 
 This repository designs, analyzes, and prototypes a **fully onboard navigation stack that never relies on satellite signals**, targeting:
 
-- 🏭 **Physical obstruction** — subterranean mines, tunnels, indoor factories, urban canyons
-- ⚡ **Electronic warfare (EW)** — RF jamming, spoofing, EMI in contested airspace
+-  **Physical obstruction** — subterranean mines, tunnels, indoor factories, urban canyons
+-  **Electronic warfare (EW)** — RF jamming, spoofing, EMI in contested airspace
 
 We explore **15 candidate navigation modalities**, narrow them through a statistical decision framework, select a **Stereo Camera + Raspberry Pi 5 + PX4** architecture, and validate it against a concrete, budget-constrained build (₹45.6k).
 
