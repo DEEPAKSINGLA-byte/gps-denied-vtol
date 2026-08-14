@@ -1,151 +1,165 @@
-# GPS-Denied Autonomous UAV Navigation
+<p align="center">
+  <img src="1_swap_tradeoff.png" alt="GPS-Denied UAV Navigation" width="200"/>
+</p>
 
-A research-oriented repository for designing, analyzing, and prototyping an **autonomous UAV navigation stack that operates without GNSS/GPS**, targeted at indoor, subterranean, and RF-contested (electronic-warfare) environments.
+<h1 align="center">GPS-Denied Autonomous UAV Navigation</h1>
 
-The project covers the full pipeline — from the formal problem statement and candidate hardware/software architectures, through quantitative decision analysis, to a concrete build budget — for a stereo-vision + Raspberry Pi 5 based drone.
+<p align="center">
+  <em>Onboard, GNSS-free state estimation, SLAM, and obstacle avoidance for indoor &amp; EW-contested flight</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/ROS_2-Humble-FC4050?logo=ros&logoColor=white" alt="ROS 2"/>
+  <img src="https://img.shields.io/badge/PX4-Autopilot-6300ff" alt="PX4"/>
+  <img src="https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&logoColor=white" alt="OpenCV"/>
+  <img src="https://img.shields.io/badge/Platform-Raspberry_Pi_5-C51A4A?logo=raspberrypi&logoColor=white" alt="Raspberry Pi 5"/>
+  <img src="https://img.shields.io/badge/Status-Research-important" alt="Status"/>
+</p>
+
+<p align="center">
+  <a href="#quick-links">Quick Links</a> •
+  <a href="#overview">Overview</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#system-architecture">Architecture</a> •
+  <a href="#quantitative-analysis">Analysis</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#key-performance-indicators">KPIs</a> •
+  <a href="#roadmap">Roadmap</a>
+</p>
 
 ---
 
-## Table of Contents
+## Quick Links
 
-- [Overview](#overview)
-- [Why GPS-Denied Navigation?](#why-gps-denied-navigation)
-- [Repository Contents](#repository-contents)
-- [Google Drive — Documents](#google-drive--documents)
-- [1. Problem Statement](#1-problem-statement)
-- [2. Candidate Solutions](#2-candidate-solutions)
-- [3. Quantitative Analysis](#3-quantitative-analysis)
-- [4. Hardware Bill of Materials (BOM)](#4-hardware-bill-of-materials-bom)
-- [5. Reproducing the Analysis](#5-reproducing-the-analysis)
-- [System Architecture](#system-architecture)
-- [Key Performance Indicators](#key-performance-indicators)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+| Resource | Description |
+| :--- | :--- |
+| 📄 [Problem Statement](PROBLEM_STATEMENT.md) | Formal problem definition, state-space math, MAP formulation, KPIs |
+| 💡 [Candidate Solutions](SOLUTIONS.md) | 15 hardware/software architectures for GPS-denied navigation |
+| 📊 [Quantitative Analysis](ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
+| 🧾 [Bill of Materials](BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
+| ☁️ [Google Drive — Documents](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) | All related documentation & design artifacts |
 
 ---
 
 ## Overview
 
-Modern drones depend on GNSS (GPS/GLONASS/Galileo/BeiDou) for positioning. When that signal is blocked or jammed, low-cost MEMS IMUs default to dead-reckoning, and position error grows **quadratically** with time — a guaranteed crash in minutes.
+Modern UAVs depend on GNSS (GPS/GLONASS/Galileo/BeiDou) for positioning. In blocked or jammed environments, low-cost MEMS IMUs fall back to dead-reckoning, and position error grows **quadratically** — a crash within minutes.
 
-This repository explores **15 candidate navigation modalities** for solving that problem and narrows them down through a statistical decision framework against a concrete, budget-constrained build.
+This repository designs, analyzes, and prototypes a **fully onboard navigation stack that never relies on satellite signals**, targeting:
 
-**Selected architecture (per `BOM.md`):** Stereo Camera + Raspberry Pi 5 8GB + Holybro Kakute H7 flight controller (PX4) — a pure V-SLAM / visual-odometry configuration.
+- 🏭 **Physical obstruction** — subterranean mines, tunnels, indoor factories, urban canyons
+- ⚡ **Electronic warfare (EW)** — RF jamming, spoofing, EMI in contested airspace
+
+We explore **15 candidate navigation modalities**, narrow them through a statistical decision framework, select a **Stereo Camera + Raspberry Pi 5 + PX4** architecture, and validate it against a concrete, budget-constrained build (₹45.6k).
 
 ---
 
-## Why GPS-Denied Navigation?
+## Tech Stack
 
-GNSS-denial arises from two broad operational domains:
+### Compute & Operating System
 
-| Domain | Examples |
+| Component | Role |
 | :--- | :--- |
-| **Physical obstruction** | Subterranean mines, tunnels, indoor factories, urban canyons, forest canopies |
-| **Electronic warfare (EW)** | RF jamming, spoofing, electromagnetic interference in contested airspace |
+| **Raspberry Pi 5 — 8GB** | Onboard edge compute: perception, depth, costmap, V-SLAM |
+| **Ubuntu / Debian (ARM64)** | Flight-vehicle compute OS |
 
-Without external position fixes, standard flight stacks suffer:
+### Middleware & Autonomy
 
-- **Quadratic position drift** — $O(t^2)$ accumulation of IMU bias/thermal noise.
-- **Unbounded velocity error** from orientation drift.
-- **Single-sensor failure modes** — vision fails in darkness/smoke; LiDAR is heavy and SWaP-hungry; active RF beacons violate stealth.
-
-See [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) for the full formalization.
-
----
-
-## Repository Contents
-
-| File | Description |
+| Stack | Purpose |
 | :--- | :--- |
-| `PROBLEM_STATEMENT.md` | Formal problem definition, state-space math, MAP formulation, KPIs |
-| `SOLUTIONS.md` | 15 hardware/software architectures for GPS-denied navigation |
-| `ANALYSIS_SOLUTIONS.md` | Statistical decision-matrix analysis of those 15 solutions |
-| `analysis.py` | Python script that generates all 12 comparative charts |
-| `1_swap_tradeoff.png` | SWaP chart — payload mass vs. power draw (bubble = drift) |
-| `2_drift_rate_comparison.png` | Drift rate benchmark (bar chart) |
-| `3_cost_benchmark_inr.png` | Hardware cost comparison in INR (bar chart) |
-| `4_robustness_heatmap.png` | Environmental robustness heatmap |
-| `5_cost_effectiveness.png` | Drift vs. hardware cost (cost-effectiveness) |
-| `6_drift_vs_payload.png` | Drift vs. payload mass (weight penalty) |
-| `7_robustness_total.png` | Total robustness score ranking |
-| `8_cost_by_category.png` | Cost distribution per category (boxplot) |
-| `9_radar_profiles.png` | Multi-criteria radar profiles of key modalities |
-| `10_update_rate_vs_drift.png` | Update rate vs. drift |
-| `11_range_vs_drift.png` | Operational range vs. drift |
-| `12_mcda_scenarios.png` | MCDA top-3 scores by mission profile |
-| `BOM.md` | Hardware bill of materials with pricing and rationale |
-| `images/` | Supporting figures |
+| **ROS 2 (Humble)** | Node-based robotics middleware, pub/sub, TF2, lifecycle |
+| **Nav2** | Global/local path planning, costmaps, recovery behaviors |
+| **V-SLAM / Visual Odometry** | ORB-SLAM3, VINS-Fusion (stereo-inertial) |
+| **OpenCV 4.x** | Feature extraction, depth/point-cloud, ArUco detection |
+| **EKF / Factor-Graph Smoothing** | Multi-sensor state estimation & loop closure |
+| **MAVLink / mavros** | Flight-controller link & offboard mode control |
+
+### Firmware & Control
+
+| Stack | Purpose |
+| :--- | :--- |
+| **PX4 Autopilot** | Real-time stabilization & control on the Kakute H7 |
+| **Holybro Kakute H7 (STM32H7)** | Flight controller: `100 Hz` attitude/rate loops |
+| **Raspberry Pi Pico (option)** | Dedicated low-latency sensor telemetry / GPIO |
+
+### Sensor Payload
+
+| Sensor | Role |
+| :--- | :--- |
+| **SC132GS Binocular Stereo Camera** | Visual odometry, depth, point clouds, ArUco tags |
+| **IMU (on FC + optional external)** | Gyro/accel fusion for VIO |
+| **Optical Flow + Rangefinder (option)** | Velocity + altitude hold |
+
+### Radio & Power
+
+| Component | Purpose |
+| :--- | :--- |
+| **RadioMaster Pocket ELRS** | Manual pilot override (low-latency 2.4 GHz) |
+| **RadioMaster RP1 ELRS Nano** | Receiver on the drone |
+| **Tattu R-Line 850 mAh 4S 150C** | ~10 min flight power |
+
+### Analysis Toolchain
+
+| Tool | Purpose |
+| :--- | :--- |
+| **Python 3** / `pandas` / `matplotlib` / `seaborn` | Quantitative charting & MCDA visualization |
+| **LaTeX math rendering** | Formal formulations in docs |
 
 ---
 
-## Google Drive — Documents
+## System Architecture
 
-All related documentation and design artifacts are stored in the shared Google Drive folder:
+```
+                        +-----------------------------+
+                        |    Heterogeneous Sensors    |
+                        | (Stereo Cam, IMU, Optional  |
+                        |  Flow + Rangefinder)        |
+                        +--------------+--------------+
+                                       |
+                                       v
+                        +-----------------------------+
+                        |  Raspberry Pi 5 (ROS 2)     |
+                        |  ┌ Feature Extraction       |
+                        |  ├ Depth & Point Cloud      |
+                        |  ├ V-SLAM / VIO             |
+                        |  ├ ArUco / Localization     |
+                        |  └ Costmap & Global Planner │
+                        +--------------+--------------+
+                                       |
+                                       v
+                        +-----------------------------+
+                        |  State Estimator (EKF /     |
+                        |  Factor Graph + Loop Close) |
+                        +--------------+--------------+
+                                       |
+                                       v
+                        +-----------------------------+
+                        |  Offboard Velocity          |
+                        |  Setpoints via MAVLink      |
+                        +--------------+--------------+
+                                       |
+                                       v
+                        +-----------------------------+
+                        |  Kakute H7 — PX4 (100 Hz)   |
+                        |  Attitude / Rate / Mixer    |
+                        +--------------+--------------+
+                                       |
+                ┌──────────────────────────┐
+                v                          v
+        ELRS RF Link                 ESCs → Motors
+        (Manual Override)
+```
 
-**📁 [Project Documents on Google Drive](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing)**
-
----
-
-## 1. Problem Statement
-
-**Formal objective:**
-
-> Design, construct, and validate a fully onboard, real-time navigation and state-estimation stack for a resource-constrained UAV that continuously estimates its state trajectory $\mathbf{x}_{0:T}$ within bounded error thresholds ($\epsilon < \delta$) over extended operational durations ($T_{mission} \ge 30 \text{ mins}$) without relying on external satellite signals or pre-installed infrastructure.
-
-This is solved as a **maximum a posteriori (MAP) estimation** problem over the factor graph:
-
-$$\mathbf{x}_{0:T}^* = \arg\max_{\mathbf{x}_{0:T}} \left[ p(\mathbf{x}_0) \prod_{t=1}^{T} p(\mathbf{x}_t \mid \mathbf{x}_{t-1}, \mathbf{u}_t) \prod_{k \in \mathcal{Z}_t} p(\mathbf{z}_{t,k} \mid \mathbf{x}_t) \right]$$
-
-Where $\mathbf{u}_t$ are IMU/control inputs and $\mathbf{z}_{t,k}$ are exteroceptive measurements (camera features, LiDAR point clouds, rangefinder readings).
-
-Full details — state vector, biases, constraints, and scope boundaries — in [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md).
-
----
-
-## 2. Candidate Solutions
-
-[SOLUTIONS.md](SOLUTIONS.md) catalogs **15 distinct navigation architectures**, summarized below:
-
-### Vision-Based
-| # | Solution | Key Idea |
-| :--- | :--- | :--- |
-| 2 | Stereo Camera + Raspberry Pi 5 | Pure V-SLAM; dense 3D point cloud from stereo disparity |
-| 4 | Event-Based Camera Odometry | Neuromorphic cameras; zero motion blur, low latency |
-| 5 | Visual SLAM | Landmark memory with global loop closure |
-| 7 | Optical Flow + Rangefinder | Downward camera + laser altimeter for perfect hover |
-| 8 | ArUco / Fiducial Tag Tracking | Pre-printed tags as vision-based localization anchors |
-| 9 | Three RGB Cameras + RPi 5 | Panoramic field-of-view for feature retention |
-| 10 | Depth Camera + RPi 5 | Active IR projection; ready-to-use depth/point clouds |
-
-### Laser & Range-Based
-| # | Solution | Key Idea |
-| :--- | :--- | :--- |
-| 1 | 2D LiDAR + Optical Flow | Hybrid: LiDAR for layout, flow sensor for velocity |
-| 3 | 2D LiDAR + Monocular RGB | LiDAR for 2D mapping, camera for vision tasks |
-| 6 | Acoustic / Ultrasonic Array | Echolocation-style; cheap, works in pitch-black |
-| 11 | 3D LiDAR + RPi 5 | 360° topographical map; full obstacle avoidance |
-| 12 | FMCW mmWave Radar | Radio-frequency ranging; immune to smoke/dust |
-
-### Beacon & Geophysical
-| # | Solution | Key Idea |
-| :--- | :--- | :--- |
-| 13 | UWB Beacon Triangulation | Miniature indoor GPS via radio ping timing |
-| 14 | Magnetic Anomaly Navigation (MAGNAV) | Passive matching of Earth's magnetic field |
-| 15 | TERCOM / SITAN | Terrain contour matching against a DEM |
+**Data flow:** Sensors → RPi 5 (ROS 2 perception + planning) → state estimator → MAVLink offboard setpoints → PX4 flight controller → actuators, with an ELRS manual-safety override in parallel.
 
 ---
 
-## 3. Quantitative Analysis
+## Quantitative Analysis
 
-[ANALYSIS_SOLUTIONS.md](ANALYSIS_SOLUTIONS.md) provides a statistical and decision-matrix framework over the 15 solutions, including:
+`analysis.py` generates **12 charts** from the decision matrix in `ANALYSIS_SOLUTIONS.md` (drift %, power W, payload g, update Hz, range m, cost INR).
 
-- **Quantitative performance matrix** — drift rate, power draw, payload mass, update rate, operational range.
-- **Accuracy vs. SWaP clustering** — three Pareto-frontier clusters (ultra-low SWaP / balanced / high-reliability).
-- **Robustness matrix** — 1–5 scores across darkness, smoke/dust, glare, RF jamming, and unmapped territory.
-- **Multi-Criteria Decision Analysis (MCDA)** — weighted top-3 rankings for three mission profiles.
-
-### Top Rankings by Mission Profile
+### MCDA Top-3 by Mission Profile
 
 | Mission Profile | 1st | 2nd | 3rd |
 | :--- | :--- | :--- | :--- |
@@ -153,115 +167,60 @@ Full details — state vector, biases, constraints, and scope boundaries — in 
 | **Underground Inspection** | 3D LiDAR SLAM | FMCW mmWave Radar | Depth Camera (IR) |
 | **Sub-250g Micro UAV** | Optical Flow + Rangefinder | UWB Beacon Triangulation | ArUco Tag Tracking |
 
-The charts below are generated by [`analysis.py`](analysis.py).
+### Chart Gallery
+
+<details>
+<summary><b>View all 12 charts</b></summary>
+
+| Chart | File |
+| :--- | :--- |
+| SWaP trade-off (payload vs power, bubble = drift) | `1_swap_tradeoff.png` |
+| Drift-rate benchmark | `2_drift_rate_comparison.png` |
+| Hardware cost benchmark (INR) | `3_cost_benchmark_inr.png` |
+| Environmental robustness heatmap | `4_robustness_heatmap.png` |
+| Cost-effectiveness (drift vs cost) | `5_cost_effectiveness.png` |
+| Weight penalty (drift vs payload) | `6_drift_vs_payload.png` |
+| Total robustness ranking | `7_robustness_total.png` |
+| Cost distribution per category | `8_cost_by_category.png` |
+| Multi-criteria radar profiles | `9_radar_profiles.png` |
+| Update rate vs drift | `10_update_rate_vs_drift.png` |
+| Range vs drift | `11_range_vs_drift.png` |
+| MCDA top-3 scenario scores | `12_mcda_scenarios.png` |
+
+</details>
 
 ![SWaP Trade-Off](1_swap_tradeoff.png)
 ![Drift Rate Benchmark](2_drift_rate_comparison.png)
 ![Cost Benchmark](3_cost_benchmark_inr.png)
 ![Robustness Heatmap](4_robustness_heatmap.png)
-![Cost-Effectiveness](5_cost_effectiveness.png)
-![Drift vs Payload](6_drift_vs_payload.png)
-![Total Robustness](7_robustness_total.png)
-![Cost by Category](8_cost_by_category.png)
-![Radar Profiles](9_radar_profiles.png)
-![Update Rate vs Drift](10_update_rate_vs_drift.png)
-![Range vs Drift](11_range_vs_drift.png)
-![MCDA Scenarios](12_mcda_scenarios.png)
 
 ---
 
-## 4. Hardware Bill of Materials (BOM)
-
-The selected build is a **stereo vision + edge-compute** configuration. Full details and rationale in [BOM.md](BOM.md).
-
-| Component | Purpose | Price (INR) |
-| :--- | :--- | ---: |
-| SC132GS Binocular Stereo Camera | Visual odometry, depth, ArUco detection | ₹6,061.66 |
-| Raspberry Pi 5 — 8GB | Perception, depth, costmap, navigation | ₹17,500 |
-| Holybro Kakute H7 V1.3 | Flight controller (PX4) | ₹10,217 |
-| RadioMaster Pocket ELRS | Manual override / pilot control | ₹7,000 |
-| RadioMaster RP1 ELRS Nano | Receiver on drone | ₹2,600 |
-| Tattu R-Line 850mAh 4S 150C | Power (~10 min flight time) | ₹2,300 |
-| | **Total** | **₹45,678.66** |
-
-### Why this stack?
-- **Stereo camera** provides both visual odometry *and* depth — no active lasers needed.
-- **Raspberry Pi 5 (8GB)** has the compute headroom for V-SLAM, point clouds, and Nav2-style planning on-board.
-- **Kakute H7** runs PX4 in real-time for stabilization while the Pi handles perception.
-- **ELRS radio link** guarantees a manual safety override during autonomous flight.
-
----
-
-## 5. Reproducing the Analysis
+## Getting Started
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - Dependencies: `pandas`, `matplotlib`, `seaborn`
 
 ```bash
 pip install pandas matplotlib seaborn
 ```
 
-### Generate the charts
+### Regenerate the analysis
 
 ```bash
 python3 analysis.py
 ```
 
-This regenerates all **12 PNG charts** in the repository root:
+Regenerates all **12 PNG charts** in the repository root.
 
-1. `1_swap_tradeoff.png` — SWaP trade-off scatter (log-log)
-2. `2_drift_rate_comparison.png` — drift benchmark
-3. `3_cost_benchmark_inr.png` — cost benchmark
-4. `4_robustness_heatmap.png` — robustness heatmap
-5. `5_cost_effectiveness.png` — drift vs. cost scatter
-6. `6_drift_vs_payload.png` — drift vs. payload scatter
-7. `7_robustness_total.png` — total robustness ranking
-8. `8_cost_by_category.png` — cost distribution per category
-9. `9_radar_profiles.png` — multi-criteria radar profiles
-10. `10_update_rate_vs_drift.png` — update rate vs. drift
-11. `11_range_vs_drift.png` — range vs. drift
-12. `12_mcda_scenarios.png` — MCDA top-3 scenario scores
+### Hardware bring-up (roadmap)
 
----
-
-## System Architecture
-
-```
-              +-----------------------------+
-              |    Heterogeneous Sensors    |
-              | (Stereo Cam, IMU, ...)      |
-              +--------------+--------------+
-                             |
-                             v
-              +-----------------------------+
-              |  Raspberry Pi 5             |
-              |  Feature Extraction /       |
-              |  Depth & Point Cloud        |
-              |  V-SLAM / ArUco             |
-              +--------------+--------------+
-                             |
-                             v
-              +-----------------------------+
-              |  State Estimator            |
-              |  (EKF / Factor Graph)       |
-              +--------------+--------------+
-                             |
-                             v
-              +-----------------------------+
-              |  Local Map & Loop Closure   |
-              |  (SLAM / Costmap)           |
-              +--------------+--------------+
-                             |
-                             v
-              +-----------------------------+
-              |  Kakute H7 (PX4)            |
-              |  Flight Controller          |
-              +-----------------------------+
-
-  RadioMaster Pocket (ELRS)  --manual override-->  Kakute H7
-```
+1. Flash PX4 on the Kakute H7 and verify basic manual flight.
+2. Install ROS 2 Humble + `mavros` on the Raspberry Pi 5.
+3. Connect stereo camera; calibrate intrinsics/extrinsics.
+4. Run V-SLAM/VIO per the [Roadmap](#roadmap).
 
 ---
 
@@ -269,11 +228,11 @@ This regenerates all **12 PNG charts** in the repository root:
 
 | Metric | Target | Baseline (Dead-Reckoning) |
 | :--- | :--- | :--- |
-| Absolute Trajectory Error (ATE) | $< 0.5\%$ of path length | $> 10\%$ |
-| Stationary Hover Drift | $\le \pm 5 \text{ cm}$ / 10 min | Unbounded ($\ge 2$ m/min) |
-| State Update Rate | $\ge 100 \text{ Hz}$; Vision $\ge 30 \text{ Hz}$ | Frame drop → filter divergence |
-| Onboard Compute Envelope | $\le 15 \text{ W}$ | Off-board cloud reliance |
-| Lighting Adaptability | $0$ – $10{,}000+$ lux | Fails below 50 lux |
+| Absolute Trajectory Error (ATE) | `$< 0.5\%$` of path length | `$> 10\%$` |
+| Stationary Hover Drift | `$\le \pm 5$` cm / 10 min | Unbounded (`$\ge 2$` m/min) |
+| State Update Rate | `$\ge 100$` Hz; Vision `$\ge 30$` Hz | Frame drop → filter divergence |
+| Onboard Compute Envelope | `$\le 15$` W | Off-board cloud reliance |
+| Lighting Adaptability | `$0$` – `$10{,}000+$` lux | Fails below 50 lux |
 
 ---
 
@@ -298,3 +257,13 @@ This is an exploratory research repository. Suggestions, test data, and implemen
 3. Commit your changes and open a pull request.
 
 ---
+
+## License
+
+Not yet specified. See the repository owner for licensing terms.
+
+---
+
+<p align="center">
+  <sub>Built for research-grade indoor &amp; contested-environment autonomy · No GNSS required</sub>
+</p>
