@@ -48,5 +48,5 @@ You place small radio beacons around the room, and the drone calculates its exac
 ### 14. Magnetic Anomaly Navigation (MAGNAV)
 The drone senses the tiny, natural differences in the Earth's magnetic pull across different locations and compares it to a pre-loaded magnetic map[cite: 1]. Since it's purely passive, you have to be very careful with your PCB design and wiring to ensure your drone's motors don't scramble the sensitive analog readings[cite: 1].
 
-### 15. Terrain Contour Matching (TERCOM) / SITAN
+### 15. Terrain Contour Matching (TERCOM)
 A downward sensor constantly measures the height of the hills and valleys below the drone, matching that shape against a 3D map saved in memory[cite: 1]. It is mostly used for high-altitude, long-distance flights rather than indoor robotics, reading the landscape like a giant barcode.
