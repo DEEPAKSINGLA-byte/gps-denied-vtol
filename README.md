@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="1_swap_tradeoff.png" alt="GPS-Denied UAV Navigation" width="200"/>
+<img width="633" height="473" alt="image" src="https://github.com/user-attachments/assets/6d49e17d-afb5-40ae-9434-eaf62bd4b33f" />
+
 </p>
 
 <h1 align="center">GPS-Denied Autonomous UAV Navigation</h1>
