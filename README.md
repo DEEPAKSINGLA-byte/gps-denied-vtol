@@ -298,7 +298,3 @@ This is an exploratory research repository. Suggestions, test data, and implemen
 3. Commit your changes and open a pull request.
 
 ---
-
-## License
-
-Not yet specified. See the repository owner for licensing terms.
