@@ -7,29 +7,24 @@ sns.set_theme(style="whitegrid")
 plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.family': 'sans-serif'})
 
 # ---------------------------------------------------------
-# 1. Master Dataset (20 GPS-Denied UAV Navigation Solutions)
+# 1. Master Dataset (15 GPS-Denied UAV Navigation Solutions)
 # ---------------------------------------------------------
 data = [
-    {"Solution": "VIO", "Drift_Mid": 1.0, "Power_Mid": 8.5, "Payload_Mid": 55, "Cost_INR": 55000, "Category": "Visual"},
-    {"Solution": "Visual SLAM", "Drift_Mid": 0.3, "Power_Mid": 17.5, "Payload_Mid": 85, "Cost_INR": 97500, "Category": "Visual"},
-    {"Solution": "Optical Flow + ToF", "Drift_Mid": 3.5, "Power_Mid": 2.0, "Payload_Mid": 25, "Cost_INR": 7750, "Category": "Visual"},
-    {"Solution": "DSMAC", "Drift_Mid": 0.3, "Power_Mid": 14.0, "Payload_Mid": 140, "Cost_INR": 165000, "Category": "Visual"},
-    {"Solution": "Event Camera VIO", "Drift_Mid": 1.4, "Power_Mid": 5.5, "Payload_Mid": 42.5, "Cost_INR": 575000, "Category": "Visual"},
-    {"Solution": "3D LiDAR SLAM", "Drift_Mid": 0.125, "Power_Mid": 30.0, "Payload_Mid": 725, "Cost_INR": 1125000, "Category": "LiDAR/Range"},
-    {"Solution": "mmWave Radar", "Drift_Mid": 2.0, "Power_Mid": 7.0, "Payload_Mid": 120, "Cost_INR": 77500, "Category": "LiDAR/Range"},
-    {"Solution": "UWB Anchors", "Drift_Mid": 0.01, "Power_Mid": 2.0, "Payload_Mid": 20, "Cost_INR": 30000, "Category": "RF/Beacons"},
-    {"Solution": "Acoustic Array", "Drift_Mid": 2.5, "Power_Mid": 1.25, "Payload_Mid": 27.5, "Cost_INR": 16500, "Category": "LiDAR/Range"},
+    {"Solution": "2D LiDAR + Optical Flow", "Drift_Mid": 1.4, "Power_Mid": 7.0, "Payload_Mid": 150, "Cost_INR": 12500, "Category": "LiDAR/Range"},
+    {"Solution": "Stereo Cam V-SLAM (RPi 5)", "Drift_Mid": 0.3, "Power_Mid": 10.5, "Payload_Mid": 85, "Cost_INR": 18000, "Category": "Visual"},
+    {"Solution": "2D LiDAR + Monocular RGB", "Drift_Mid": 1.5, "Power_Mid": 8.0, "Payload_Mid": 140, "Cost_INR": 15500, "Category": "LiDAR/Range"},
+    {"Solution": "Event-Based Camera Odometry", "Drift_Mid": 1.4, "Power_Mid": 5.5, "Payload_Mid": 42.5, "Cost_INR": 45000, "Category": "Visual"},
+    {"Solution": "Visual SLAM", "Drift_Mid": 0.3, "Power_Mid": 17.5, "Payload_Mid": 85, "Cost_INR": 12000, "Category": "Visual"},
+    {"Solution": "Acoustic / Ultrasonic Array", "Drift_Mid": 2.5, "Power_Mid": 1.25, "Payload_Mid": 27.5, "Cost_INR": 16500, "Category": "LiDAR/Range"},
+    {"Solution": "Optical Flow + Rangefinder", "Drift_Mid": 3.5, "Power_Mid": 2.0, "Payload_Mid": 25, "Cost_INR": 7750, "Category": "Visual"},
+    {"Solution": "ArUco / Fiducial Tags", "Drift_Mid": 0.005, "Power_Mid": 2.0, "Payload_Mid": 20, "Cost_INR": 5000, "Category": "Visual"},
+    {"Solution": "Three RGB Cameras (RPi 5)", "Drift_Mid": 0.65, "Power_Mid": 13.0, "Payload_Mid": 105, "Cost_INR": 14000, "Category": "Visual"},
+    {"Solution": "Depth Camera (RPi 5)", "Drift_Mid": 1.0, "Power_Mid": 10.0, "Payload_Mid": 70, "Cost_INR": 26000, "Category": "Visual"},
+    {"Solution": "3D LiDAR SLAM (RPi 5)", "Drift_Mid": 0.125, "Power_Mid": 22.5, "Payload_Mid": 375, "Cost_INR": 425000, "Category": "LiDAR/Range"},
+    {"Solution": "FMCW mmWave Radar", "Drift_Mid": 2.0, "Power_Mid": 7.0, "Payload_Mid": 120, "Cost_INR": 77500, "Category": "LiDAR/Range"},
+    {"Solution": "UWB Beacon Triangulation", "Drift_Mid": 0.005, "Power_Mid": 2.0, "Payload_Mid": 20, "Cost_INR": 30000, "Category": "RF/Beacons"},
     {"Solution": "MAGNAV", "Drift_Mid": 0.6, "Power_Mid": 3.5, "Payload_Mid": 70, "Cost_INR": 40000, "Category": "Geophysical"},
-    {"Solution": "TERCOM / SITAN", "Drift_Mid": 0.45, "Power_Mid": 10.0, "Payload_Mid": 225, "Cost_INR": 235000, "Category": "Geophysical"},
-    {"Solution": "Star Tracker", "Drift_Mid": 0.05, "Power_Mid": 5.5, "Payload_Mid": 165, "Cost_INR": 500000, "Category": "Geophysical"},
-    {"Solution": "Signals of Opportunity", "Drift_Mid": 3.0, "Power_Mid": 5.5, "Payload_Mid": 80, "Cost_INR": 34000, "Category": "RF/Beacons"},
-    {"Solution": "Pseudolites", "Drift_Mid": 0.01, "Power_Mid": 3.5, "Payload_Mid": 35, "Cost_INR": 325000, "Category": "RF/Beacons"},
-    {"Solution": "DoA RF Homing", "Drift_Mid": 2.5, "Power_Mid": 4.0, "Payload_Mid": 60, "Cost_INR": 52500, "Category": "RF/Beacons"},
-    {"Solution": "Tactical FOG INS", "Drift_Mid": 0.05, "Power_Mid": 40.0, "Payload_Mid": 2150, "Cost_INR": 2850000, "Category": "Inertial/Other"},
-    {"Solution": "Tethered Link", "Drift_Mid": 0.001, "Power_Mid": 0.1, "Payload_Mid": 300, "Cost_INR": 95000, "Category": "Inertial/Other"},
-    {"Solution": "ZUPT Perching", "Drift_Mid": 0.001, "Power_Mid": 0.5, "Payload_Mid": 20, "Cost_INR": 11500, "Category": "Inertial/Other"},
-    {"Solution": "Swarm Mesh", "Drift_Mid": 1.25, "Power_Mid": 6.5, "Payload_Mid": 47.5, "Cost_INR": 42500, "Category": "Inertial/Other"},
-    {"Solution": "Deep Inertial Odometry", "Drift_Mid": 2.0, "Power_Mid": 10.0, "Payload_Mid": 35, "Cost_INR": 60000, "Category": "Inertial/Other"}
+    {"Solution": "TERCOM / SITAN", "Drift_Mid": 0.45, "Power_Mid": 10.0, "Payload_Mid": 225, "Cost_INR": 235000, "Category": "Geophysical"}
 ]
 
 df = pd.DataFrame(data)
@@ -58,7 +53,7 @@ plt.ylabel("Power Draw (W) [Log Scale]", fontsize=11)
 
 # Annotate key navigation solutions
 for _, row in df.iterrows():
-    if row["Solution"] in ["VIO", "3D LiDAR SLAM", "UWB Anchors", "Tactical FOG INS", "mmWave Radar", "Optical Flow + ToF"]:
+    if row["Solution"] in ["3D LiDAR SLAM (RPi 5)", "UWB Beacon Triangulation", "FMCW mmWave Radar", "Optical Flow + Rangefinder", "Stereo Cam V-SLAM (RPi 5)"]:
         ax.annotate(
             row["Solution"], 
             (row["Payload_Mid"], row["Power_Mid"]),
@@ -83,7 +78,7 @@ palette_drift = sns.color_palette("mako", len(df_sorted_drift))
 bars_drift = ax.barh(df_sorted_drift["Solution"], df_sorted_drift["Drift_Mid"], color=palette_drift)
 
 plt.xlabel("Position Drift Rate (% of Distance Traveled) [Lower is Better]", fontsize=11)
-plt.title("Position Drift Rate Benchmark Across All 20 Solutions", fontsize=13, fontweight='bold', pad=15)
+plt.title("Position Drift Rate Benchmark Across All 15 Solutions", fontsize=13, fontweight='bold', pad=15)
 plt.xlim(0, 4.2)
 
 for bar in bars_drift:
@@ -105,7 +100,7 @@ palette_cost = sns.color_palette("viridis", len(df_sorted_cost))
 bars_cost = ax.barh(df_sorted_cost["Solution"], df_sorted_cost["Cost_INR"], color=palette_cost)
 
 plt.xlabel("Estimated Hardware Cost (INR) [Log Scale]", fontsize=11, fontweight='bold')
-plt.title("Hardware Cost Benchmark Across 20 Navigation Solutions (in ₹)", fontsize=13, fontweight='bold', pad=15)
+plt.title("Hardware Cost Benchmark Across 15 Navigation Solutions (in ₹)", fontsize=13, fontweight='bold', pad=15)
 plt.xscale("log")
 plt.xlim(1000, 10000000)
 
@@ -122,20 +117,25 @@ plt.show()
 # Chart 4: Environmental Robustness Heatmap
 # ---------------------------------------------------------
 robustness_data = {
-    "Visual (VIO / V-SLAM)": [1, 1, 2, 5, 5],
-    "Event Camera VIO": [2, 1, 5, 5, 5],
-    "3D LiDAR SLAM": [5, 2, 5, 5, 5],
+    "2D LiDAR + Optical Flow": [5, 2, 5, 5, 5],
+    "Stereo / Three-Cam V-SLAM": [1, 1, 2, 5, 5],
+    "2D LiDAR + Monocular RGB": [5, 2, 3, 5, 5],
+    "Event-Based Camera Odometry": [2, 1, 5, 5, 5],
+    "Visual SLAM": [1, 1, 2, 5, 5],
+    "Acoustic / Ultrasonic Array": [5, 3, 5, 5, 2],
+    "Optical Flow + Rangefinder": [2, 1, 3, 5, 5],
+    "ArUco / Fiducial Tags": [2, 2, 3, 5, 1],
+    "Depth Camera (RPi 5)": [2, 1, 3, 5, 5],
+    "3D LiDAR SLAM (RPi 5)": [5, 2, 5, 5, 5],
     "FMCW mmWave Radar": [5, 5, 5, 5, 5],
     "UWB / RF Beacons": [5, 5, 5, 1, 1],
-    "Geophysical (MAGNAV/TERCOM)": [5, 5, 5, 5, 2],
-    "Tactical FOG INS": [5, 5, 5, 5, 5],
-    "Deep Inertial Odometry": [5, 5, 5, 5, 4]
+    "Geophysical (MAGNAV/TERCOM)": [5, 5, 5, 5, 2]
 }
 
 categories = ["Zero Light", "Smoke/Dust", "Visual Glare", "RF Jamming", "Unmapped Space"]
 df_rob = pd.DataFrame(robustness_data, index=categories).T
 
-fig, ax = plt.subplots(figsize=(9.5, 5.5))
+fig, ax = plt.subplots(figsize=(11, 7))
 sns.heatmap(
     df_rob, 
     annot=True, 
