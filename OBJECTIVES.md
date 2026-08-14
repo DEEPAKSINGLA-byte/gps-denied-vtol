@@ -17,17 +17,17 @@ Fuse heterogeneous sensors (stereo vision, IMU, optional flow/rangefinder) with 
 ### 4. Real-Time Performance Within an Onboard Compute Envelope
 Deliver high-rate state updates and low end-to-end latency entirely on onboard edge compute (Raspberry Pi 5), within a tight power and thermal budget — with no cloud or ground-station dependency.
 
-### 5. Electronic Warfare and RF Resilience
+### 5. Perception Robustness Across Environmental Conditions
+Maintain reliable state estimation and obstacle detection across the full lighting spectrum — pitch-black, smoke/dust-filled, featureless, glare-heavy, and motion-blurred conditions — not just well-lit, textured environments.
+
+### 6. Electronic Warfare and RF Resilience
 Remain immune to RF jamming and spoofing, and prefer passive sensing modalities to preserve low observability (stealth) in contested airspace.
 
-### 6. Precision Hover and Low-Speed Maneuvering
+### 7. Precision Hover and Low-Speed Maneuvering
 Hold stable station-keeping and execute precise takeoff, landing, and low-speed maneuvers without GPS assistance.
 
-### 7. Energy Management for Sustained Missions
+### 8. Energy Management for Sustained Missions
 Complete extended missions (target ≥ 30 minutes) within battery and payload constraints, budgeting power across sensing, compute, and actuation.
-
-### 8. Perception Robustness Across Environmental Conditions
-Maintain reliable state estimation and obstacle detection across the full lighting spectrum — pitch-black, smoke/dust-filled, featureless, glare-heavy, and motion-blurred conditions — not just well-lit, textured environments.
 
 ### 9. Safety, Failsafes, and Manual Override
 Provide continuous pilot override (ELRS radio link) and robust failsafe behaviors (lost-link, low-battery, sensor-failure) that transition to safe landing or return-to-base without GNSS.
