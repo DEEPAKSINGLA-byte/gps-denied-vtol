@@ -18,16 +18,13 @@ class KeyboardDrone(Node):
     def __init__(self):
         super().__init__('keyboard_drone')
 
-        # Save terminal settings
         self.settings = termios.tcgetattr(sys.stdin)
 
-        # Velocity commands
         self.vx = 0.0
         self.vy = 0.0
         self.vz = 0.0
         self.vyaw = 0.0
 
-        # Publishers
         self.offboard_pub = self.create_publisher(
             OffboardControlMode,
             '/fmu/in/offboard_control_mode',
@@ -46,7 +43,6 @@ class KeyboardDrone(Node):
             10
         )
 
-        # 20 Hz timer
         self.timer = self.create_timer(
             0.05,
             self.timer_callback
@@ -63,20 +59,11 @@ class KeyboardDrone(Node):
             "SPACE: stop | O: Offboard | T: Arm | G: Disarm | X: Exit"
         )
 
-    # ---------------------------------------------------------
-    # TIMER
-    # ---------------------------------------------------------
-
     def timer_callback(self):
 
-        # Read keyboard
         self.keyboard_callback()
 
         timestamp = self.get_clock().now().nanoseconds // 1000
-
-        # -----------------------------------------------------
-        # OffboardControlMode
-        # -----------------------------------------------------
 
         msg = OffboardControlMode()
 
@@ -89,10 +76,6 @@ class KeyboardDrone(Node):
         msg.body_rate = False
 
         self.offboard_pub.publish(msg)
-
-        # -----------------------------------------------------
-        # TrajectorySetpoint
-        # -----------------------------------------------------
 
         trajectory = TrajectorySetpoint()
 
@@ -107,10 +90,6 @@ class KeyboardDrone(Node):
         trajectory.yawspeed = self.vyaw
 
         self.trajectory_pub.publish(trajectory)
-
-    # ---------------------------------------------------------
-    # VEHICLE COMMAND
-    # ---------------------------------------------------------
 
     def publish_command(
         self,
@@ -140,10 +119,6 @@ class KeyboardDrone(Node):
 
         self.command_pub.publish(msg)
 
-    # ---------------------------------------------------------
-    # ARM
-    # ---------------------------------------------------------
-
     def arm(self):
 
         self.get_logger().info("Arming drone")
@@ -152,10 +127,6 @@ class KeyboardDrone(Node):
             VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM,
             1.0
         )
-
-    # ---------------------------------------------------------
-    # DISARM
-    # ---------------------------------------------------------
 
     def disarm(self):
 
@@ -166,10 +137,6 @@ class KeyboardDrone(Node):
             0.0
         )
 
-    # ---------------------------------------------------------
-    # OFFBOARD MODE
-    # ---------------------------------------------------------
-
     def set_offboard_mode(self):
 
         self.get_logger().info("Requesting Offboard mode")
@@ -179,10 +146,6 @@ class KeyboardDrone(Node):
             1.0,
             6.0
         )
-
-    # ---------------------------------------------------------
-    # KEYBOARD INPUT
-    # ---------------------------------------------------------
 
     def get_key(self):
 
@@ -199,7 +162,6 @@ class KeyboardDrone(Node):
 
             key = sys.stdin.read(1)
 
-        # Restore terminal
         termios.tcsetattr(
             sys.stdin,
             termios.TCSADRAIN,
@@ -208,20 +170,12 @@ class KeyboardDrone(Node):
 
         return key
 
-    # ---------------------------------------------------------
-    # KEYBOARD CONTROL
-    # ---------------------------------------------------------
-
     def keyboard_callback(self):
 
         key = self.get_key()
 
         speed = 1.0
         yaw_speed = 0.5
-
-        # -------------------------
-        # Movement
-        # -------------------------
 
         if key == 'w':
 
@@ -243,28 +197,15 @@ class KeyboardDrone(Node):
             self.vy = speed
             self.get_logger().info("Right")
 
-        # -------------------------
-        # Vertical movement
-        # -------------------------
-
         elif key == 'r':
-
-            # NED:
-            # negative Z = up
 
             self.vz = -speed
             self.get_logger().info("Up")
 
         elif key == 'f':
 
-            # positive Z = down
-
             self.vz = speed
             self.get_logger().info("Down")
-
-        # -------------------------
-        # Yaw
-        # -------------------------
 
         elif key == 'q':
 
@@ -276,10 +217,6 @@ class KeyboardDrone(Node):
             self.vyaw = yaw_speed
             self.get_logger().info("Yaw right")
 
-        # -------------------------
-        # Stop
-        # -------------------------
-
         elif key == ' ':
 
             self.vx = 0.0
@@ -289,33 +226,17 @@ class KeyboardDrone(Node):
 
             self.get_logger().info("STOP")
 
-        # -------------------------
-        # Offboard
-        # -------------------------
-
         elif key == 'o':
 
             self.set_offboard_mode()
-
-        # -------------------------
-        # Arm
-        # -------------------------
 
         elif key == 't':
 
             self.arm()
 
-        # -------------------------
-        # Disarm
-        # -------------------------
-
         elif key == 'g':
 
             self.disarm()
-
-        # -------------------------
-        # Exit
-        # -------------------------
 
         elif key == 'x':
 
@@ -328,10 +249,6 @@ class KeyboardDrone(Node):
 
             rclpy.shutdown()
 
-    # ---------------------------------------------------------
-    # CLEANUP
-    # ---------------------------------------------------------
-
     def cleanup(self):
 
         termios.tcsetattr(
@@ -340,10 +257,6 @@ class KeyboardDrone(Node):
             self.settings
         )
 
-
-# =============================================================
-# MAIN
-# =============================================================
 
 def main(args=None):
 
