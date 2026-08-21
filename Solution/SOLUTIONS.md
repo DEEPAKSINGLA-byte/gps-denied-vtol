@@ -7,13 +7,13 @@ This repository outlines 15 distinct hardware and software architectures for aut
 ## Architecture & Sensor Solutions
 
 ### 1. 2D LiDAR + Optical Flow (The Hybrid Architecture)
-A hybrid setup that splits the workload: LiDAR handles the room's layout, while the optical flow sensor watches the floor to measure speed[cite: 2]. This means you can wire the flow sensor directly to the flight controller via SPI for instant velocity feedback, keeping the custom PID control loop perfectly stable without overloading your main processor.
+A hybrid setup that splits the workload: LiDAR handles the room's layout, while the optical flow sensor watches the floor to measure speed . This means you can wire the flow sensor directly to the flight controller via SPI for instant velocity feedback, keeping the custom PID control loop perfectly stable without overloading your main processor.
 
 ### 2. Stereo Camera + 8GB Raspberry Pi 5 (Pure V-SLAM)
-This relies purely on camera feeds to build a dense, 3D point cloud of the world around it[cite: 2]. Since it doesn't use active lasers, you'll spend most of your time tweaking ROS 2 middleware and C++ nodes to stop the drone from drifting when it flies down a plain, textureless hallway[cite: 2].
+This relies purely on camera feeds to build a dense, 3D point cloud of the world around it. Since it doesn't use active lasers, you'll spend most of your time tweaking ROS 2 middleware and C++ nodes to stop the drone from drifting when it flies down a plain, textureless hallway.
 
 ### 3. 2D LiDAR + Monocular RGB Camera (Vision + Geometry)
-Here, a spinning laser scanner does the heavy lifting for 2D mapping and dodging obstacles, leaving the single camera free for specific vision tasks[cite: 2]. You can easily run custom Python OpenCV scripts on that camera feed to track specific colors or target landing zones without lagging the Nav2 stack[cite: 2].
+Here, a spinning laser scanner does the heavy lifting for 2D mapping and dodging obstacles, leaving the single camera free for specific vision tasks . You can easily run custom Python OpenCV scripts on that camera feed to track specific colors or target landing zones without lagging the Nav2 stack .
 
 ### 4. Event-Based Camera Odometry (Neuromorphic Vision)
 Instead of capturing standard video frames, these advanced cameras only record pixels when the light intensity changes, working much like a human eye to provide zero motion blur and extremely low latency[cite: 1]. This completely eliminates motion blur during fast maneuvers, though you'll need specialized algorithms since standard OpenCV functions won't work on this data stream.
@@ -28,7 +28,7 @@ This acts just like a bat using echolocation, sending out high-pitched sound wav
 A downward-facing camera tracks the ground moving beneath it to figure out how fast the drone is sliding sideways, while a laser measures exact altitude[cite: 1]. This is the ultimate low-compute trick to make a drone hover absolutely perfectly in one spot without needing heavy simulation tools or mapping software.
 
 ### 8. ArUco Marker / Fiducial Tag Tracking
-The drone looks for specific, pre-printed QR-code-like square tags placed in the environment to calculate exactly where it is[cite: 2]. It's essentially a vision-based cheat code for localization that drastically simplifies your C++ or Python target-tracking scripts[cite: 2].
+The drone looks for specific, pre-printed QR-code-like square tags placed in the environment to calculate exactly where it is . It's essentially a vision-based cheat code for localization that drastically simplifies your C++ or Python target-tracking scripts .
 
 ### 9. Three RGB Cameras + 8GB Raspberry Pi 5
 By stitching together feeds from three separate cameras, the drone gets a super-wide, panoramic view of its surroundings. This extra field of view ensures the drone rarely loses track of visual features, making the localization math much more forgiving in tight spaces.
