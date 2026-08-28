@@ -1,1 +1,13 @@
 .vscode
+software/src/build
+software/src/install
+software/src/log
+# Model weights and checkpoints
+*.pt
+*.pth
+*.weights
+*.onnx
+*.engine
+*.trt
+*.bin
+*.safetensors
