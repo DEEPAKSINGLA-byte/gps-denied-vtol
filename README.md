@@ -40,6 +40,7 @@
 | [Quantitative Analysis](ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
 | [Bill of Materials](BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
 | [Google Drive — Documents](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) | All related documentation & design artifacts |
+| [Semantic Mapping Demo](https://youtu.be/XxDwwBQxVR0) | YOLOv8 real-time semantic segmentation for robotics (from `software/src/quadcopter_perception`) |
 
 ---
 
