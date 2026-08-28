@@ -1,0 +1,32 @@
+running egg_info
+creating ../../build/quadcopter_localization/quadcopter_localization.egg-info
+writing ../../build/quadcopter_localization/quadcopter_localization.egg-info/PKG-INFO
+writing dependency_links to ../../build/quadcopter_localization/quadcopter_localization.egg-info/dependency_links.txt
+writing entry points to ../../build/quadcopter_localization/quadcopter_localization.egg-info/entry_points.txt
+writing requirements to ../../build/quadcopter_localization/quadcopter_localization.egg-info/requires.txt
+writing top-level names to ../../build/quadcopter_localization/quadcopter_localization.egg-info/top_level.txt
+writing manifest file '../../build/quadcopter_localization/quadcopter_localization.egg-info/SOURCES.txt'
+reading manifest file '../../build/quadcopter_localization/quadcopter_localization.egg-info/SOURCES.txt'
+writing manifest file '../../build/quadcopter_localization/quadcopter_localization.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build
+creating /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build/lib
+creating /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build/lib/quadcopter_localization
+copying quadcopter_localization/__init__.py -> /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build/lib/quadcopter_localization
+copying quadcopter_localization/frame_utils.py -> /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build/lib/quadcopter_localization
+running install
+running install_lib
+creating /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization
+copying /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build/lib/quadcopter_localization/__init__.py -> /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization
+copying /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build/lib/quadcopter_localization/frame_utils.py -> /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization
+byte-compiling /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization/frame_utils.py to frame_utils.cpython-310.pyc
+running install_data
+creating /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/ament_index
+creating /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/ament_index/resource_index
+creating /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/ament_index/resource_index/packages
+copying resource/quadcopter_localization -> /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/ament_index/resource_index/packages
+error: can't copy 'launch/visual_odometry_bridge.launch.py': doesn't exist or not a regular file
+copying package.xml -> /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization
+creating /home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/launch

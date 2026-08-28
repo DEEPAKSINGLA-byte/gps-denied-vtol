@@ -1,0 +1,21 @@
+[0.887s] Invoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_bringup build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/install.log --install-scripts $base/lib/quadcopter_bringup --single-version-externally-managed install_data
+[1.036s] running egg_info
+[1.037s] writing ../../build/quadcopter_bringup/quadcopter_bringup.egg-info/PKG-INFO
+[1.037s] writing dependency_links to ../../build/quadcopter_bringup/quadcopter_bringup.egg-info/dependency_links.txt
+[1.037s] writing entry points to ../../build/quadcopter_bringup/quadcopter_bringup.egg-info/entry_points.txt
+[1.037s] writing requirements to ../../build/quadcopter_bringup/quadcopter_bringup.egg-info/requires.txt
+[1.037s] writing top-level names to ../../build/quadcopter_bringup/quadcopter_bringup.egg-info/top_level.txt
+[1.038s] reading manifest file '../../build/quadcopter_bringup/quadcopter_bringup.egg-info/SOURCES.txt'
+[1.038s] writing manifest file '../../build/quadcopter_bringup/quadcopter_bringup.egg-info/SOURCES.txt'
+[1.038s] running build
+[1.039s] running build_py
+[1.039s] running install
+[1.039s] running install_lib
+[1.039s] running install_data
+[1.039s] running install_egg_info
+[1.040s] removing '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages/quadcopter_bringup-0.0.0-py3.10.egg-info' (and everything under it)
+[1.041s] Copying ../../build/quadcopter_bringup/quadcopter_bringup.egg-info to /home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages/quadcopter_bringup-0.0.0-py3.10.egg-info
+[1.041s] running install_scripts
+[1.053s] Installing teleop script to /home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/quadcopter_bringup
+[1.053s] writing list of installed files to '/home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/install.log'
+[1.084s] Invoked command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup' returned '0': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_bringup build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/install.log --install-scripts $base/lib/quadcopter_bringup --single-version-externally-managed install_data

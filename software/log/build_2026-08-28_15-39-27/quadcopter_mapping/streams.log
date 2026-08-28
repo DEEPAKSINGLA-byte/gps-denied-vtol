@@ -1,0 +1,32 @@
+[0.950s] Invoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_mapping': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_mapping build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/install.log --install-scripts $base/lib/quadcopter_mapping --single-version-externally-managed install_data
+[1.123s] running egg_info
+[1.124s] creating ../../build/quadcopter_mapping/quadcopter_mapping.egg-info
+[1.124s] writing ../../build/quadcopter_mapping/quadcopter_mapping.egg-info/PKG-INFO
+[1.124s] writing dependency_links to ../../build/quadcopter_mapping/quadcopter_mapping.egg-info/dependency_links.txt
+[1.124s] writing entry points to ../../build/quadcopter_mapping/quadcopter_mapping.egg-info/entry_points.txt
+[1.124s] writing requirements to ../../build/quadcopter_mapping/quadcopter_mapping.egg-info/requires.txt
+[1.124s] writing top-level names to ../../build/quadcopter_mapping/quadcopter_mapping.egg-info/top_level.txt
+[1.124s] writing manifest file '../../build/quadcopter_mapping/quadcopter_mapping.egg-info/SOURCES.txt'
+[1.125s] reading manifest file '../../build/quadcopter_mapping/quadcopter_mapping.egg-info/SOURCES.txt'
+[1.125s] writing manifest file '../../build/quadcopter_mapping/quadcopter_mapping.egg-info/SOURCES.txt'
+[1.126s] running build
+[1.126s] running build_py
+[1.126s] creating /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build
+[1.126s] creating /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build/lib
+[1.126s] creating /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build/lib/quadcopter_mapping
+[1.126s] copying quadcopter_mapping/__init__.py -> /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build/lib/quadcopter_mapping
+[1.127s] running install
+[1.127s] running install_lib
+[1.127s] creating /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages/quadcopter_mapping
+[1.127s] copying /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build/lib/quadcopter_mapping/__init__.py -> /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages/quadcopter_mapping
+[1.127s] byte-compiling /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages/quadcopter_mapping/__init__.py to __init__.cpython-310.pyc
+[1.127s] running install_data
+[1.128s] creating /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/ament_index
+[1.128s] creating /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/ament_index/resource_index
+[1.128s] creating /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/ament_index/resource_index/packages
+[1.128s] copying resource/quadcopter_mapping -> /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/ament_index/resource_index/packages
+[1.128s] copying package.xml -> /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping
+[1.128s] running install_egg_info
+[1.128s] Copying ../../build/quadcopter_mapping/quadcopter_mapping.egg-info to /home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages/quadcopter_mapping-0.0.0-py3.10.egg-info
+[1.129s] running install_scripts
+[1.141s] writing list of installed files to '/home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/install.log'

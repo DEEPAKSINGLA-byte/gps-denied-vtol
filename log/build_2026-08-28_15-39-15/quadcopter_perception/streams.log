@@ -1,0 +1,32 @@
+[0.916s] Invoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_perception': PYTHONPATH=/home/deepak/gps-denied-vtol/build/quadcopter_perception/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/install/quadcopter_perception/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/quadcopter_perception build --build-base /home/deepak/gps-denied-vtol/build/quadcopter_perception/build install --record /home/deepak/gps-denied-vtol/build/quadcopter_perception/install.log --install-scripts $base/lib/quadcopter_perception --single-version-externally-managed install_data
+[1.062s] running egg_info
+[1.063s] creating ../../../build/quadcopter_perception/quadcopter_perception.egg-info
+[1.063s] writing ../../../build/quadcopter_perception/quadcopter_perception.egg-info/PKG-INFO
+[1.063s] writing dependency_links to ../../../build/quadcopter_perception/quadcopter_perception.egg-info/dependency_links.txt
+[1.063s] writing entry points to ../../../build/quadcopter_perception/quadcopter_perception.egg-info/entry_points.txt
+[1.063s] writing requirements to ../../../build/quadcopter_perception/quadcopter_perception.egg-info/requires.txt
+[1.063s] writing top-level names to ../../../build/quadcopter_perception/quadcopter_perception.egg-info/top_level.txt
+[1.063s] writing manifest file '../../../build/quadcopter_perception/quadcopter_perception.egg-info/SOURCES.txt'
+[1.064s] reading manifest file '../../../build/quadcopter_perception/quadcopter_perception.egg-info/SOURCES.txt'
+[1.064s] writing manifest file '../../../build/quadcopter_perception/quadcopter_perception.egg-info/SOURCES.txt'
+[1.064s] running build
+[1.064s] running build_py
+[1.064s] creating /home/deepak/gps-denied-vtol/build/quadcopter_perception/build
+[1.065s] creating /home/deepak/gps-denied-vtol/build/quadcopter_perception/build/lib
+[1.065s] creating /home/deepak/gps-denied-vtol/build/quadcopter_perception/build/lib/quadcopter_perception
+[1.065s] copying quadcopter_perception/__init__.py -> /home/deepak/gps-denied-vtol/build/quadcopter_perception/build/lib/quadcopter_perception
+[1.065s] running install
+[1.065s] running install_lib
+[1.065s] creating /home/deepak/gps-denied-vtol/install/quadcopter_perception/lib/python3.10/site-packages/quadcopter_perception
+[1.065s] copying /home/deepak/gps-denied-vtol/build/quadcopter_perception/build/lib/quadcopter_perception/__init__.py -> /home/deepak/gps-denied-vtol/install/quadcopter_perception/lib/python3.10/site-packages/quadcopter_perception
+[1.065s] byte-compiling /home/deepak/gps-denied-vtol/install/quadcopter_perception/lib/python3.10/site-packages/quadcopter_perception/__init__.py to __init__.cpython-310.pyc
+[1.066s] running install_data
+[1.066s] creating /home/deepak/gps-denied-vtol/install/quadcopter_perception/share/ament_index
+[1.066s] creating /home/deepak/gps-denied-vtol/install/quadcopter_perception/share/ament_index/resource_index
+[1.066s] creating /home/deepak/gps-denied-vtol/install/quadcopter_perception/share/ament_index/resource_index/packages
+[1.066s] copying resource/quadcopter_perception -> /home/deepak/gps-denied-vtol/install/quadcopter_perception/share/ament_index/resource_index/packages
+[1.066s] copying package.xml -> /home/deepak/gps-denied-vtol/install/quadcopter_perception/share/quadcopter_perception
+[1.066s] running install_egg_info
+[1.067s] Copying ../../../build/quadcopter_perception/quadcopter_perception.egg-info to /home/deepak/gps-denied-vtol/install/quadcopter_perception/lib/python3.10/site-packages/quadcopter_perception-0.0.0-py3.10.egg-info
+[1.067s] running install_scripts
+[1.079s] writing list of installed files to '/home/deepak/gps-denied-vtol/build/quadcopter_perception/install.log'

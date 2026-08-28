@@ -1,0 +1,315 @@
+[0.068s] [34mcolcon[0m [1;30mDEBUG[0m [32mCommand line arguments: ['/usr/bin/colcon', 'build'][0m
+[0.068s] [34mcolcon[0m [1;30mDEBUG[0m [32mParsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=20, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=None, packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x722fd1f80df0>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x722fd1f80730>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x722fd1f80730>>, mixin_verb=('build',))[0m
+[0.171s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(colcon_meta) check parameters
+[0.171s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(recursive) check parameters
+[0.171s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(ignore) check parameters
+[0.171s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(path) check parameters
+[0.171s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(colcon_meta) discover
+[0.172s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(recursive) discover
+[0.172s] [34mcolcon.colcon_core.package_discovery[0m [1;30mINFO[0m Crawling recursively for packages in '/home/deepak/gps-denied-vtol/software'
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'ignore'
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'ignore_ament_install'
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extensions ['colcon_pkg']
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'colcon_pkg'
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extensions ['colcon_meta']
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'colcon_meta'
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extensions ['ros']
+[0.172s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'ros'
+[0.186s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extensions ['cmake', 'python']
+[0.186s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'cmake'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'python'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extensions ['python_setup_py']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(.) by extension 'python_setup_py'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(build) by extensions ['ignore', 'ignore_ament_install']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(build) by extension 'ignore'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(build) ignored
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(install) by extensions ['ignore', 'ignore_ament_install']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(install) by extension 'ignore'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(install) ignored
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(log) by extensions ['ignore', 'ignore_ament_install']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(log) by extension 'ignore'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(log) ignored
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extensions ['ignore', 'ignore_ament_install']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'ignore'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'ignore_ament_install'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extensions ['colcon_pkg']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'colcon_pkg'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extensions ['colcon_meta']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'colcon_meta'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extensions ['ros']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'ros'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extensions ['cmake', 'python']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'cmake'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'python'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extensions ['python_setup_py']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src) by extension 'python_setup_py'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'ignore'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'ignore_ament_install'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extensions ['colcon_pkg']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'colcon_pkg'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extensions ['colcon_meta']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'colcon_meta'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extensions ['ros']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'ros'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extensions ['cmake', 'python']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'cmake'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'python'
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extensions ['python_setup_py']
+[0.187s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_msgs) by extension 'python_setup_py'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extensions ['ignore', 'ignore_ament_install']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'ignore'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'ignore_ament_install'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extensions ['colcon_pkg']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'colcon_pkg'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extensions ['colcon_meta']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'colcon_meta'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extensions ['ros']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'ros'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extensions ['cmake', 'python']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'cmake'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'python'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extensions ['python_setup_py']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/px4_ros_com) by extension 'python_setup_py'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extensions ['ignore', 'ignore_ament_install']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extension 'ignore'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extension 'ignore_ament_install'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extensions ['colcon_pkg']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extension 'colcon_pkg'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extensions ['colcon_meta']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extension 'colcon_meta'
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extensions ['ros']
+[0.188s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_bringup) by extension 'ros'
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mDEBUG[0m [32mPackage 'src/quadcopter_bringup' with type 'ros.ament_python' and name 'quadcopter_bringup'[0m
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extensions ['ignore', 'ignore_ament_install']
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extension 'ignore'
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extension 'ignore_ament_install'
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extensions ['colcon_pkg']
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extension 'colcon_pkg'
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extensions ['colcon_meta']
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extension 'colcon_meta'
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extensions ['ros']
+[0.189s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_localization) by extension 'ros'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mDEBUG[0m [32mPackage 'src/quadcopter_localization' with type 'ros.ament_python' and name 'quadcopter_localization'[0m
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extensions ['ignore', 'ignore_ament_install']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extension 'ignore'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extension 'ignore_ament_install'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extensions ['colcon_pkg']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extension 'colcon_pkg'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extensions ['colcon_meta']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extension 'colcon_meta'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extensions ['ros']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_mapping) by extension 'ros'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mDEBUG[0m [32mPackage 'src/quadcopter_mapping' with type 'ros.ament_python' and name 'quadcopter_mapping'[0m
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extensions ['ignore', 'ignore_ament_install']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extension 'ignore'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extension 'ignore_ament_install'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extensions ['colcon_pkg']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extension 'colcon_pkg'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extensions ['colcon_meta']
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extension 'colcon_meta'
+[0.190s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extensions ['ros']
+[0.191s] [34mcolcon.colcon_core.package_identification[0m [1;30mLevel 1[0m _identify(src/quadcopter_perception) by extension 'ros'
+[0.191s] [34mcolcon.colcon_core.package_identification[0m [1;30mDEBUG[0m [32mPackage 'src/quadcopter_perception' with type 'ros.ament_python' and name 'quadcopter_perception'[0m
+[0.191s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(recursive) using defaults
+[0.191s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(ignore) discover
+[0.191s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(ignore) using defaults
+[0.191s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(path) discover
+[0.191s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(path) using defaults
+[0.199s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(prefix_path) check parameters
+[0.199s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(prefix_path) discover
+[0.201s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 4 installed packages in /home/deepak/gps-denied-vtol/software/install[0m
+[0.201s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 2 installed packages in /home/deepak/ws_sensor_combined/install[0m
+[0.202s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 46 installed packages in /home/deepak/moveit_ws/install[0m
+[0.202s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 1 installed packages in /home/deepak/Robotic_Arm/install[0m
+[0.202s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 13 installed packages in /home/deepak/ros2_ws/install[0m
+[0.203s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 4 installed packages in /home/deepak/ros_gz/install[0m
+[0.203s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 1 installed packages in /home/deepak/6_dof/install[0m
+[0.204s] [34mcolcon.colcon_installed_package_information.package_discovery[0m [1;30mDEBUG[0m [32mFound 408 installed packages in /opt/ros/humble[0m
+[0.205s] [34mcolcon.colcon_core.package_discovery[0m [1;30mLevel 1[0m discover_packages(prefix_path) using defaults
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'cmake_target' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'cmake_clean_cache' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'cmake_clean_first' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'cmake_force_configure' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'ament_cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'catkin_cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_bringup' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mDEBUG[0m [32mBuilding package 'quadcopter_bringup' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/deepak/gps-denied-vtol/software/build/quadcopter_bringup', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup', 'merge_install': False, 'path': '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup', 'symlink_install': False, 'test_result_base': None}[0m
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'cmake_target' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'cmake_clean_cache' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'cmake_clean_first' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'cmake_force_configure' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'ament_cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'catkin_cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_localization' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mDEBUG[0m [32mBuilding package 'quadcopter_localization' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/deepak/gps-denied-vtol/software/build/quadcopter_localization', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization', 'merge_install': False, 'path': '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization', 'symlink_install': False, 'test_result_base': None}[0m
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'cmake_target' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'cmake_clean_cache' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'cmake_clean_first' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'cmake_force_configure' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'ament_cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'catkin_cmake_args' from command line to 'None'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_mapping' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.230s] [34mcolcon.colcon_core.verb[0m [1;30mDEBUG[0m [32mBuilding package 'quadcopter_mapping' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/deepak/gps-denied-vtol/software/build/quadcopter_mapping', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping', 'merge_install': False, 'path': '/home/deepak/gps-denied-vtol/software/src/quadcopter_mapping', 'symlink_install': False, 'test_result_base': None}[0m
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'cmake_args' from command line to 'None'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'cmake_target' from command line to 'None'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'cmake_clean_cache' from command line to 'False'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'cmake_clean_first' from command line to 'False'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'cmake_force_configure' from command line to 'False'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'ament_cmake_args' from command line to 'None'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'catkin_cmake_args' from command line to 'None'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mLevel 5[0m set package 'quadcopter_perception' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.231s] [34mcolcon.colcon_core.verb[0m [1;30mDEBUG[0m [32mBuilding package 'quadcopter_perception' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/deepak/gps-denied-vtol/software/build/quadcopter_perception', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception', 'merge_install': False, 'path': '/home/deepak/gps-denied-vtol/software/src/quadcopter_perception', 'symlink_install': False, 'test_result_base': None}[0m
+[0.231s] [34mcolcon.colcon_core.executor[0m [1;30mINFO[0m Executing jobs using 'parallel' executor
+[0.232s] [34mcolcon.colcon_parallel_executor.executor.parallel[0m [1;30mDEBUG[0m [32mrun_until_complete[0m
+[0.232s] [34mcolcon.colcon_ros.task.ament_python.build[0m [1;30mINFO[0m Building ROS package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup' with build type 'ament_python'
+[0.232s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_bringup', 'ament_prefix_path')
+[0.233s] [34mcolcon.colcon_core.plugin_system[0m [1;30mINFO[0m Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.233s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/hook/ament_prefix_path.ps1'
+[0.234s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/hook/ament_prefix_path.dsv'
+[0.234s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/hook/ament_prefix_path.sh'
+[0.234s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.234s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.239s] [34mcolcon.colcon_ros.task.ament_python.build[0m [1;30mINFO[0m Building ROS package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization' with build type 'ament_python'
+[0.239s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_localization', 'ament_prefix_path')
+[0.239s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/hook/ament_prefix_path.ps1'
+[0.239s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/hook/ament_prefix_path.dsv'
+[0.239s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/hook/ament_prefix_path.sh'
+[0.239s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.239s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.243s] [34mcolcon.colcon_ros.task.ament_python.build[0m [1;30mINFO[0m Building ROS package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_mapping' with build type 'ament_python'
+[0.243s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_mapping', 'ament_prefix_path')
+[0.244s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/hook/ament_prefix_path.ps1'
+[0.244s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/hook/ament_prefix_path.dsv'
+[0.244s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/hook/ament_prefix_path.sh'
+[0.244s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.244s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.248s] [34mcolcon.colcon_ros.task.ament_python.build[0m [1;30mINFO[0m Building ROS package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_perception' with build type 'ament_python'
+[0.248s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_perception', 'ament_prefix_path')
+[0.249s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/hook/ament_prefix_path.ps1'
+[0.249s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/hook/ament_prefix_path.dsv'
+[0.249s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/hook/ament_prefix_path.sh'
+[0.249s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.249s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.409s] [34mcolcon.colcon_core.task.python.build[0m [1;30mINFO[0m Building Python package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup'
+[0.409s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.410s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.575s] [34mcolcon.colcon_core.task.python.build[0m [1;30mINFO[0m Building Python package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization'
+[0.575s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.575s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.763s] [34mcolcon.colcon_core.task.python.build[0m [1;30mINFO[0m Building Python package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_mapping'
+[0.763s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.763s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[0.930s] [34mcolcon.colcon_core.task.python.build[0m [1;30mINFO[0m Building Python package in '/home/deepak/gps-denied-vtol/software/src/quadcopter_perception'
+[0.930s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.930s] [34mcolcon.colcon_core.shell[0m [1;30mDEBUG[0m [32mSkip shell extension 'dsv' for command environment[0m
+[1.166s] [34mcolcon.colcon_core.task.python.build[0m [1;30mDEBUG[0m [32mAvailable setuptools commands: install_scripts, bdist, init_catalog, compile_catalog, bdist_rpm, setopt, bdist_dumb, build_py, upload_docs, install_egg_info, alias, rotate, build_ext, install_lib, build_scripts, sdist, build_clib, extract_messages, upload, easy_install, update_catalog, develop, bdist_wheel, install_headers, test, bdist_egg, symlink_data, saveopts, register, install, install_data, clean, check, build, egg_info, dist_info[0m
+[1.168s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_mapping': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_mapping build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/install.log --install-scripts $base/lib/quadcopter_mapping --single-version-externally-managed install_data[0m
+[1.169s] [34mcolcon.colcon_core.task.python.build[0m [1;30mDEBUG[0m [32mAvailable setuptools commands: install_scripts, bdist, init_catalog, compile_catalog, bdist_rpm, setopt, bdist_dumb, build_py, upload_docs, install_egg_info, alias, rotate, build_ext, install_lib, build_scripts, sdist, build_clib, extract_messages, upload, easy_install, update_catalog, develop, bdist_wheel, install_headers, test, bdist_egg, symlink_data, saveopts, register, install, install_data, clean, check, build, egg_info, dist_info[0m
+[1.170s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_perception': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_perception/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_perception build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_perception/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_perception/install.log --install-scripts $base/lib/quadcopter_perception --single-version-externally-managed install_data[0m
+[1.172s] [34mcolcon.colcon_core.task.python.build[0m [1;30mDEBUG[0m [32mAvailable setuptools commands: install_scripts, bdist, init_catalog, compile_catalog, bdist_rpm, setopt, bdist_dumb, build_py, upload_docs, install_egg_info, alias, rotate, build_ext, install_lib, build_scripts, sdist, build_clib, extract_messages, upload, easy_install, update_catalog, develop, bdist_wheel, install_headers, test, bdist_egg, symlink_data, saveopts, register, install, install_data, clean, check, build, egg_info, dist_info[0m
+[1.174s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_bringup build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/install.log --install-scripts $base/lib/quadcopter_bringup --single-version-externally-managed install_data[0m
+[1.179s] [34mcolcon.colcon_core.task.python.build[0m [1;30mDEBUG[0m [32mAvailable setuptools commands: install_scripts, bdist, init_catalog, compile_catalog, bdist_rpm, setopt, bdist_dumb, build_py, upload_docs, install_egg_info, alias, rotate, build_ext, install_lib, build_scripts, sdist, build_clib, extract_messages, upload, easy_install, update_catalog, develop, bdist_wheel, install_headers, test, bdist_egg, symlink_data, saveopts, register, install, install_data, clean, check, build, egg_info, dist_info[0m
+[1.181s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_localization/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_localization build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/install.log --single-version-externally-managed install_data[0m
+[1.356s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoked command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_perception' returned '0': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_perception/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_perception build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_perception/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_perception/install.log --install-scripts $base/lib/quadcopter_perception --single-version-externally-managed install_data[0m
+[1.358s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception' for CMake module files
+[1.359s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception' for CMake config files
+[1.359s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/lib'
+[1.360s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/bin'
+[1.360s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/lib/pkgconfig/quadcopter_perception.pc'
+[1.360s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/lib/python3.10/site-packages'
+[1.360s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_perception', 'pythonpath')
+[1.360s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/hook/pythonpath.ps1'
+[1.361s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/hook/pythonpath.dsv'
+[1.361s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/hook/pythonpath.sh'
+[1.362s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/bin'
+[1.362s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_environment_scripts_only(quadcopter_perception)
+[1.362s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/package.ps1'
+[1.363s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/package.dsv'
+[1.364s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/package.sh'
+[1.364s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/package.bash'
+[1.365s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/quadcopter_perception/package.zsh'
+[1.365s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_file_with_runtime_dependencies(/home/deepak/gps-denied-vtol/software/install/quadcopter_perception/share/colcon-core/packages/quadcopter_perception)
+[1.366s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping' for CMake module files
+[1.366s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoked command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_mapping' returned '0': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_mapping build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_mapping/install.log --install-scripts $base/lib/quadcopter_mapping --single-version-externally-managed install_data[0m
+[1.367s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping' for CMake config files
+[1.367s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib'
+[1.367s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/bin'
+[1.367s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/pkgconfig/quadcopter_mapping.pc'
+[1.367s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/lib/python3.10/site-packages'
+[1.367s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_mapping', 'pythonpath')
+[1.367s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/hook/pythonpath.ps1'
+[1.367s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/hook/pythonpath.dsv'
+[1.368s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/hook/pythonpath.sh'
+[1.368s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/bin'
+[1.368s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_environment_scripts_only(quadcopter_mapping)
+[1.368s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/package.ps1'
+[1.369s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/package.dsv'
+[1.369s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/package.sh'
+[1.369s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/package.bash'
+[1.369s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/quadcopter_mapping/package.zsh'
+[1.370s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_file_with_runtime_dependencies(/home/deepak/gps-denied-vtol/software/install/quadcopter_mapping/share/colcon-core/packages/quadcopter_mapping)
+[1.374s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization' for CMake module files
+[1.374s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoked command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization' returned '0': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_localization/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_localization build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_localization/install.log --single-version-externally-managed install_data[0m
+[1.374s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization' for CMake config files
+[1.375s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib'
+[1.375s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/bin'
+[1.375s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/pkgconfig/quadcopter_localization.pc'
+[1.375s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/lib/python3.10/site-packages'
+[1.375s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_localization', 'pythonpath')
+[1.375s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/hook/pythonpath.ps1'
+[1.375s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/hook/pythonpath.dsv'
+[1.376s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/hook/pythonpath.sh'
+[1.376s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/bin'
+[1.376s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_environment_scripts_only(quadcopter_localization)
+[1.376s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/package.ps1'
+[1.377s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/package.dsv'
+[1.377s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/package.sh'
+[1.377s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/package.bash'
+[1.377s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/quadcopter_localization/package.zsh'
+[1.377s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_file_with_runtime_dependencies(/home/deepak/gps-denied-vtol/software/install/quadcopter_localization/share/colcon-core/packages/quadcopter_localization)
+[1.382s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup' for CMake module files
+[1.383s] [34mcolcon.colcon_core.event_handler.log_command[0m [1;30mDEBUG[0m [32mInvoked command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_bringup' returned '0': PYTHONPATH=/home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/quadcopter_bringup build --build-base /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/build install --record /home/deepak/gps-denied-vtol/software/build/quadcopter_bringup/install.log --install-scripts $base/lib/quadcopter_bringup --single-version-externally-managed install_data[0m
+[1.383s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup' for CMake config files
+[1.383s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib'
+[1.383s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/bin'
+[1.383s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/pkgconfig/quadcopter_bringup.pc'
+[1.384s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/lib/python3.10/site-packages'
+[1.384s] [34mcolcon.colcon_core.shell[0m [1;30mLevel 1[0m create_environment_hook('quadcopter_bringup', 'pythonpath')
+[1.384s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/hook/pythonpath.ps1'
+[1.384s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/hook/pythonpath.dsv'
+[1.384s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating environment hook '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/hook/pythonpath.sh'
+[1.385s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m checking '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/bin'
+[1.385s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_environment_scripts_only(quadcopter_bringup)
+[1.385s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/package.ps1'
+[1.385s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package descriptor '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/package.dsv'
+[1.385s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/package.sh'
+[1.385s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/package.bash'
+[1.386s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating package script '/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/quadcopter_bringup/package.zsh'
+[1.386s] [34mcolcon.colcon_core.environment[0m [1;30mLevel 1[0m create_file_with_runtime_dependencies(/home/deepak/gps-denied-vtol/software/install/quadcopter_bringup/share/colcon-core/packages/quadcopter_bringup)
+[1.386s] [34mcolcon.colcon_parallel_executor.executor.parallel[0m [1;30mDEBUG[0m [32mclosing loop[0m
+[1.386s] [34mcolcon.colcon_parallel_executor.executor.parallel[0m [1;30mDEBUG[0m [32mloop closed[0m
+[1.386s] [34mcolcon.colcon_parallel_executor.executor.parallel[0m [1;30mDEBUG[0m [32mrun_until_complete finished with '0'[0m
+[1.386s] [34mcolcon.colcon_core.event_reactor[0m [1;30mDEBUG[0m [32mjoining thread[0m
+[1.390s] [34mcolcon.colcon_core.plugin_system[0m [1;30mINFO[0m Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[1.390s] [34mcolcon.colcon_core.plugin_system[0m [1;30mINFO[0m Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[1.390s] [34mcolcon.colcon_notification.desktop_notification[0m [1;30mINFO[0m Sending desktop notification using 'notify2'
+[1.398s] [34mcolcon.colcon_core.event_reactor[0m [1;30mDEBUG[0m [32mjoined thread[0m
+[1.398s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix script '/home/deepak/gps-denied-vtol/software/install/local_setup.ps1'
+[1.399s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix util module '/home/deepak/gps-denied-vtol/software/install/_local_setup_util_ps1.py'
+[1.400s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix chain script '/home/deepak/gps-denied-vtol/software/install/setup.ps1'
+[1.401s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix script '/home/deepak/gps-denied-vtol/software/install/local_setup.sh'
+[1.402s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix util module '/home/deepak/gps-denied-vtol/software/install/_local_setup_util_sh.py'
+[1.402s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix chain script '/home/deepak/gps-denied-vtol/software/install/setup.sh'
+[1.403s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix script '/home/deepak/gps-denied-vtol/software/install/local_setup.bash'
+[1.404s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix chain script '/home/deepak/gps-denied-vtol/software/install/setup.bash'
+[1.405s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix script '/home/deepak/gps-denied-vtol/software/install/local_setup.zsh'
+[1.405s] [34mcolcon.colcon_core.shell[0m [1;30mINFO[0m Creating prefix chain script '/home/deepak/gps-denied-vtol/software/install/setup.zsh'

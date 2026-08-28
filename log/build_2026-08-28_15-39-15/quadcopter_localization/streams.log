@@ -1,0 +1,34 @@
+[0.927s] Invoking command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization': PYTHONPATH=/home/deepak/gps-denied-vtol/build/quadcopter_localization/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/quadcopter_localization build --build-base /home/deepak/gps-denied-vtol/build/quadcopter_localization/build install --record /home/deepak/gps-denied-vtol/build/quadcopter_localization/install.log --single-version-externally-managed install_data
+[1.085s] running egg_info
+[1.085s] creating ../../../build/quadcopter_localization/quadcopter_localization.egg-info
+[1.085s] writing ../../../build/quadcopter_localization/quadcopter_localization.egg-info/PKG-INFO
+[1.086s] writing dependency_links to ../../../build/quadcopter_localization/quadcopter_localization.egg-info/dependency_links.txt
+[1.086s] writing entry points to ../../../build/quadcopter_localization/quadcopter_localization.egg-info/entry_points.txt
+[1.086s] writing requirements to ../../../build/quadcopter_localization/quadcopter_localization.egg-info/requires.txt
+[1.086s] writing top-level names to ../../../build/quadcopter_localization/quadcopter_localization.egg-info/top_level.txt
+[1.086s] writing manifest file '../../../build/quadcopter_localization/quadcopter_localization.egg-info/SOURCES.txt'
+[1.087s] reading manifest file '../../../build/quadcopter_localization/quadcopter_localization.egg-info/SOURCES.txt'
+[1.087s] writing manifest file '../../../build/quadcopter_localization/quadcopter_localization.egg-info/SOURCES.txt'
+[1.087s] running build
+[1.087s] running build_py
+[1.087s] creating /home/deepak/gps-denied-vtol/build/quadcopter_localization/build
+[1.087s] creating /home/deepak/gps-denied-vtol/build/quadcopter_localization/build/lib
+[1.087s] creating /home/deepak/gps-denied-vtol/build/quadcopter_localization/build/lib/quadcopter_localization
+[1.087s] copying quadcopter_localization/__init__.py -> /home/deepak/gps-denied-vtol/build/quadcopter_localization/build/lib/quadcopter_localization
+[1.087s] copying quadcopter_localization/frame_utils.py -> /home/deepak/gps-denied-vtol/build/quadcopter_localization/build/lib/quadcopter_localization
+[1.087s] running install
+[1.088s] running install_lib
+[1.088s] creating /home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization
+[1.088s] copying /home/deepak/gps-denied-vtol/build/quadcopter_localization/build/lib/quadcopter_localization/__init__.py -> /home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization
+[1.088s] copying /home/deepak/gps-denied-vtol/build/quadcopter_localization/build/lib/quadcopter_localization/frame_utils.py -> /home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization
+[1.088s] byte-compiling /home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization/__init__.py to __init__.cpython-310.pyc
+[1.089s] byte-compiling /home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages/quadcopter_localization/frame_utils.py to frame_utils.cpython-310.pyc
+[1.090s] running install_data
+[1.090s] creating /home/deepak/gps-denied-vtol/install/quadcopter_localization/share/ament_index
+[1.090s] creating /home/deepak/gps-denied-vtol/install/quadcopter_localization/share/ament_index/resource_index
+[1.090s] creating /home/deepak/gps-denied-vtol/install/quadcopter_localization/share/ament_index/resource_index/packages
+[1.090s] copying resource/quadcopter_localization -> /home/deepak/gps-denied-vtol/install/quadcopter_localization/share/ament_index/resource_index/packages
+[1.090s] copying package.xml -> /home/deepak/gps-denied-vtol/install/quadcopter_localization/share/quadcopter_localization
+[1.090s] creating /home/deepak/gps-denied-vtol/install/quadcopter_localization/share/quadcopter_localization/launch
+[1.090s] error: can't copy 'launch/visual_odometry_bridge.launch.py': doesn't exist or not a regular file
+[1.105s] Invoked command in '/home/deepak/gps-denied-vtol/software/src/quadcopter_localization' returned '1': PYTHONPATH=/home/deepak/gps-denied-vtol/build/quadcopter_localization/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/deepak/gps-denied-vtol/install/quadcopter_localization/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/quadcopter_localization build --build-base /home/deepak/gps-denied-vtol/build/quadcopter_localization/build install --record /home/deepak/gps-denied-vtol/build/quadcopter_localization/install.log --single-version-externally-managed install_data

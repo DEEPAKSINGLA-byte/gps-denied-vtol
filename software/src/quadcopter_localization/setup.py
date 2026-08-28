@@ -10,9 +10,6 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', [
-            'launch/visual_odometry_bridge.launch.py',
-        ]),
         ('share/' + package_name + '/params', [
             'params/localization.yaml',
         ]),
@@ -30,7 +27,6 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'visual_odometry_bridge = quadcopter_localization.visual_odometry_bridge:main',
         ],
     },
 )
