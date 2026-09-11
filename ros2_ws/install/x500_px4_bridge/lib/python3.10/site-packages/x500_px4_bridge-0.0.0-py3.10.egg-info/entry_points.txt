@@ -1,0 +1,3 @@
+[console_scripts]
+x500_px4_bridge = x500_px4_bridge.x500_px4_bridge:main
+

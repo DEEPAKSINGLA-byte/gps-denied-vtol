@@ -1,0 +1,32 @@
+running develop
+Removing /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500-px4-bridge.egg-link (link to .)
+running egg_info
+writing ../../build/x500_px4_bridge/x500_px4_bridge.egg-info/PKG-INFO
+writing dependency_links to ../../build/x500_px4_bridge/x500_px4_bridge.egg-info/dependency_links.txt
+writing entry points to ../../build/x500_px4_bridge/x500_px4_bridge.egg-info/entry_points.txt
+writing requirements to ../../build/x500_px4_bridge/x500_px4_bridge.egg-info/requires.txt
+writing top-level names to ../../build/x500_px4_bridge/x500_px4_bridge.egg-info/top_level.txt
+reading manifest file '../../build/x500_px4_bridge/x500_px4_bridge.egg-info/SOURCES.txt'
+writing manifest file '../../build/x500_px4_bridge/x500_px4_bridge.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build
+creating /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build/lib
+creating /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build/lib/x500_px4_bridge
+copying x500_px4_bridge/x500_px4_bridge.py -> /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build/lib/x500_px4_bridge
+copying x500_px4_bridge/__init__.py -> /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build/lib/x500_px4_bridge
+running install
+running install_lib
+creating /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500_px4_bridge
+copying /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build/lib/x500_px4_bridge/x500_px4_bridge.py -> /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500_px4_bridge
+copying /home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/build/lib/x500_px4_bridge/__init__.py -> /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500_px4_bridge
+byte-compiling /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500_px4_bridge/x500_px4_bridge.py to x500_px4_bridge.cpython-310.pyc
+byte-compiling /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500_px4_bridge/__init__.py to __init__.cpython-310.pyc
+running install_data
+copying resource/x500_px4_bridge -> /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/share/ament_index/resource_index/packages
+copying package.xml -> /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/share/x500_px4_bridge
+running install_egg_info
+Copying ../../build/x500_px4_bridge/x500_px4_bridge.egg-info to /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/python3.10/site-packages/x500_px4_bridge-0.0.1-py3.10.egg-info
+running install_scripts
+Installing x500_px4_bridge script to /home/deepak/PX4-Autopilot/ros2_ws/install/x500_px4_bridge/lib/x500_px4_bridge
+writing list of installed files to '/home/deepak/PX4-Autopilot/ros2_ws/build/x500_px4_bridge/install.log'

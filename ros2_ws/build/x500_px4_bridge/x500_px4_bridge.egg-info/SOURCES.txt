@@ -1,0 +1,16 @@
+package.xml
+setup.cfg
+setup.py
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/PKG-INFO
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/SOURCES.txt
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/dependency_links.txt
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/entry_points.txt
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/requires.txt
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/top_level.txt
+../../build/x500_px4_bridge/x500_px4_bridge.egg-info/zip-safe
+resource/x500_px4_bridge
+test/test_copyright.py
+test/test_flake8.py
+test/test_pep257.py
+x500_px4_bridge/__init__.py
+x500_px4_bridge/x500_px4_bridge.py

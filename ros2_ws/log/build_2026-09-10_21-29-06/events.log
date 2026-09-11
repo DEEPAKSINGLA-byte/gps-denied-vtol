@@ -1,0 +1,4 @@
+[0.000000] (-) TimerEvent: {}
+[0.000625] (-) JobUnselected: {'identifier': 'explore_lite'}
+[0.000697] (-) JobUnselected: {'identifier': 'multirobot_map_merge'}
+[0.001405] (-) EventReactorShutdown: {}

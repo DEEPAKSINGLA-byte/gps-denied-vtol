@@ -1,0 +1,101 @@
+[0.008s] Invoking command in '/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/deepak/moveit_ws/install/moveit_configs_utils:/opt/ros/humble /usr/bin/cmake /home/deepak/PX4-Autopilot/ros2_ws/src/m-explore-ros2/explore -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite
+[0.110s] -- The C compiler identification is GNU 11.4.0
+[0.176s] -- The CXX compiler identification is GNU 11.4.0
+[0.183s] -- Detecting C compiler ABI info
+[0.248s] -- Detecting C compiler ABI info - done
+[0.253s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.253s] -- Detecting C compile features
+[0.253s] -- Detecting C compile features - done
+[0.256s] -- Detecting CXX compiler ABI info
+[0.318s] -- Detecting CXX compiler ABI info - done
+[0.324s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.325s] -- Detecting CXX compile features
+[0.325s] -- Detecting CXX compile features - done
+[0.326s] -- BuilD for ROS2: humble
+[0.330s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.443s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.482s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.536s] -- Found rclcpp: 16.0.19 (/opt/ros/humble/share/rclcpp/cmake)
+[0.592s] -- Found rosidl_generator_c: 3.1.9 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[0.600s] -- Found rosidl_adapter: 3.1.9 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.611s] -- Found rosidl_generator_cpp: 3.1.9 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[0.625s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.644s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.698s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[0.704s] -- Found rmw_cyclonedds_cpp: 1.3.4 (/opt/ros/humble/share/rmw_cyclonedds_cpp/cmake)
+[0.734s] -- Using RMW implementation 'rmw_cyclonedds_cpp' as default
+[0.747s] -- Looking for pthread.h
+[0.816s] -- Looking for pthread.h - found
+[0.816s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[0.877s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[0.877s] -- Found Threads: TRUE  
+[0.925s] -- Found sensor_msgs: 4.9.1 (/opt/ros/humble/share/sensor_msgs/cmake)
+[0.952s] -- Found tf2_ros: 0.25.20 (/opt/ros/humble/share/tf2_ros/cmake)
+[1.047s] -- Found tf2_geometry_msgs: 0.25.20 (/opt/ros/humble/share/tf2_geometry_msgs/cmake)
+[1.066s] -- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+[1.066s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[1.067s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[1.071s] -- Found nav2_msgs: 1.1.20 (/opt/ros/humble/share/nav2_msgs/cmake)
+[1.101s] -- Found map_msgs: 2.1.0 (/opt/ros/humble/share/map_msgs/cmake)
+[1.115s] -- Found visualization_msgs: 4.9.1 (/opt/ros/humble/share/visualization_msgs/cmake)
+[1.129s] -- Found nav2_costmap_2d: 1.1.20 (/opt/ros/humble/share/nav2_costmap_2d/cmake)
+[1.264s] -- Found ament_lint_auto: 0.12.15 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[1.343s] -- Found ament_cmake_gtest: 1.3.14 (/opt/ros/humble/share/ament_cmake_gtest/cmake)
+[1.348s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[1.375s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[1.375s] -- Configured cppcheck include dirs: /home/deepak/PX4-Autopilot/ros2_ws/src/m-explore-ros2/explore/include;$<BUILD_INTERFACE:/home/deepak/PX4-Autopilot/ros2_ws/src/m-explore-ros2/explore/include>
+[1.375s] -- Configured cppcheck exclude dirs and/or files: 
+[1.376s] -- Added test 'flake8' to check Python code syntax and style conventions
+[1.377s] -- Added test 'lint_cmake' to check CMake code style
+[1.378s] -- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+[1.379s] -- Added test 'uncrustify' to check C / C++ code style
+[1.379s] -- Configured uncrustify additional arguments: 
+[1.380s] -- Added test 'xmllint' to check XML markup files
+[1.382s] -- Configuring done
+[1.440s] -- Generating done
+[1.446s] -- Build files have been written to: /home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite
+[1.453s] Invoked command in '/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/deepak/moveit_ws/install/moveit_configs_utils:/opt/ros/humble /usr/bin/cmake /home/deepak/PX4-Autopilot/ros2_ws/src/m-explore-ros2/explore -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite
+[1.455s] Invoking command in '/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/deepak/moveit_ws/install/moveit_configs_utils:/opt/ros/humble /usr/bin/cmake --build /home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite -- -j20 -l20
+[1.507s] [ 10%] [32mBuilding CXX object CMakeFiles/explore.dir/src/frontier_search.cpp.o[0m
+[1.509s] [ 20%] [32mBuilding CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[1.509s] [ 30%] [32mBuilding CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[1.510s] [ 40%] [32mBuilding CXX object CMakeFiles/explore.dir/src/costmap_client.cpp.o[0m
+[1.510s] [ 50%] [32mBuilding CXX object CMakeFiles/explore.dir/src/explore.cpp.o[0m
+[1.864s] [ 60%] [32m[1mLinking CXX static library libgtest_main.a[0m
+[2.007s] [ 60%] Built target gtest_main
+[3.111s] [ 70%] [32m[1mLinking CXX static library libgtest.a[0m
+[3.180s] [ 70%] Built target gtest
+[3.207s] [ 80%] [32mBuilding CXX object CMakeFiles/test_explore.dir/test/test_explore.cpp.o[0m
+[3.810s] [ 90%] [32m[1mLinking CXX executable test_explore[0m
+[4.344s] [ 90%] Built target test_explore
+[8.120s] [100%] [32m[1mLinking CXX executable explore[0m
+[9.220s] [100%] Built target explore
+[9.232s] Invoked command in '/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/deepak/moveit_ws/install/moveit_configs_utils:/opt/ros/humble /usr/bin/cmake --build /home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite -- -j20 -l20
+[9.240s] Invoking command in '/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/deepak/moveit_ws/install/moveit_configs_utils:/opt/ros/humble /usr/bin/cmake --install /home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite
+[9.245s] -- Install configuration: ""
+[9.245s] -- Execute custom install script
+[9.245s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/include/explore//costmap_client.h
+[9.254s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/include/explore//costmap_tools.h
+[9.260s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/include/explore//explore.h
+[9.266s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/include/explore//frontier_search.h
+[9.274s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/config/params.yaml
+[9.280s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/config/params_costmap.yaml
+[9.286s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/launch/explore.launch.py
+[9.294s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/lib/explore_lite/explore
+[9.300s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/ament_index/resource_index/package_run_dependencies/explore_lite
+[9.306s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/ament_index/resource_index/parent_prefix_path/explore_lite
+[9.314s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/environment/ament_prefix_path.sh
+[9.320s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/environment/ament_prefix_path.dsv
+[9.326s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/environment/path.sh
+[9.334s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/environment/path.dsv
+[9.343s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/local_setup.bash
+[9.352s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/local_setup.sh
+[9.358s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/local_setup.zsh
+[9.365s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/local_setup.dsv
+[9.374s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/package.dsv
+[9.379s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/ament_index/resource_index/packages/explore_lite
+[9.386s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/cmake/ament_cmake_export_include_directories-extras.cmake
+[9.394s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/cmake/explore_liteConfig.cmake
+[9.400s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/cmake/explore_liteConfig-version.cmake
+[9.406s] -- Symlinking: /home/deepak/PX4-Autopilot/ros2_ws/install/explore_lite/share/explore_lite/package.xml
+[9.416s] Invoked command in '/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/deepak/moveit_ws/install/moveit_configs_utils:/opt/ros/humble /usr/bin/cmake --install /home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite
