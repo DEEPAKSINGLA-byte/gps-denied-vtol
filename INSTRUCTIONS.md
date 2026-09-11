@@ -264,15 +264,74 @@ Press `q` to quit. Shows two windows:
 
 ### 6.5 Bringup - Simulation (SITL)
 
+#### 6.5.1 One-launch method (recommended)
+
+`quadcopter_bringup` ships `sitl_gz.launch.py`, which starts the
+MicroXRCE-DDS agent, PX4 SITL (`gz_x500` in the selected world), and the
+`ros_gz_bridge` (`/clock` + x500 pose/odometry) in one go. It uses the
+system `gz` (Harmonic, 8.x) binary — not `ign` (6.x) — as required by PX4
+main (`px4-rc.gzsim` enforces GZ >= 8.0.0).
+
+```bash
+cd software/src && source install/setup.bash
+
+# Default: x500 in baylands + agent on UDP 8888 + bridge
+ros2 launch quadcopter_bringup sitl_gz.launch.py
+
+# Options
+ros2 launch quadcopter_bringup sitl_gz.launch.py world:=forest
+ros2 launch quadcopter_bringup sitl_gz.launch.py headless:=true
+ros2 launch quadcopter_bringup sitl_gz.launch.py --show-args  # list all args
+```
+
+Then drive the drone from a second terminal:
+
+```bash
+cd software/src && source install/setup.bash
+ros2 run quadcopter_bringup teleop
+```
+
+#### 6.5.2 PX4 shell prestep (failsafes + arm)
+
+SITL has no GCS/RC, so disable the datalink-loss failsafe and arm from the
+`pxh>` shell (in the PX4 SITL terminal). `teleop` also auto-arms via
+`VehicleCommand`, so `commander arm` is only needed for manual bring-up:
+
+```
+pxh> param set NAV_DLL_ACT 0
+pxh> param set COM_CBK_GCS_ACT 0
+pxh> param save
+pxh> commander arm
+```
+
+> `NAV_DLL_ACT 0` = GCS-loss action Disabled (verified in
+> `commander_params.yaml`). `COM_CBK_GCS_ACT` is not a known param in PX4
+> main — confirm with `param show COM_*`; you probably want
+> `COM_DL_LOSS_T` (timeout) or `COM_OBL_ACT`/`COM_OBL_RC_ACT` (offboard-loss
+> action) instead.
+
+Verify the graph:
+
+```bash
+ros2 topic list | grep -E 'clock|model|fmu'
+gz topic -l | grep -E 'x500|clock'  # raw Gazebo topics
+```
+
+#### 6.5.3 Manual method (three terminals)
+
 ```bash
 # Terminal 1 - MicroXRCE-DDS agent over UDP loopback
 MicroXRCEAgent udp4 -p 8888 -v
 
-# Terminal 2 - PX4 SITL + Gazebo (from the PX4-Autopilot source directory)
-make px4_sitl gazebo
+# Terminal 2 - PX4 SITL + Gazebo Harmonic (from the PX4-Autopilot source directory)
+PX4_GZ_WORLD=baylands make px4_sitl gz_x500
 
-# Terminal 3 - ROS 2 node
+# Terminal 3 - ROS 2 bridge + teleop node
 cd software/src && source install/setup.bash
+ros2 run ros_gz_bridge parameter_bridge \
+  /clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock \
+  /model/x500/odometry@nav_msgs/msg/Odometry[ignition.msgs.Odometry \
+  /model/x500/pose@geometry_msgs/msg/PoseArray[ignition.msgs.Pose_V
 ros2 run quadcopter_bringup teleop
 ```
 

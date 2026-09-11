@@ -70,14 +70,54 @@ colcon build --packages-select quadcopter_bringup --symlink-install
 
 ### 4.1 Simulation (SITL)
 
+#### 4.1.1 One-launch method (recommended)
+
+`sitl_gz.launch.py` starts the MicroXRCE-DDS agent (UDP 8888), PX4 SITL
+(`gz_x500`, default world `baylands`), and the `ros_gz_bridge`
+(`/clock` + x500 pose/odometry). It uses the system `gz` (Harmonic, 8.x),
+not `ign` (6.x), as required by PX4 main:
+
+```bash
+cd <workspace>/src && source install/setup.bash
+
+ros2 launch quadcopter_bringup sitl_gz.launch.py
+ros2 launch quadcopter_bringup sitl_gz.launch.py world:=forest
+ros2 launch quadcopter_bringup sitl_gz.launch.py headless:=true
+```
+
+Bridge mappings mirror `config/sitl_gz_bridge.yaml` (Humble's bridge takes
+CLI mappings, so they are passed as node arguments in the launch file).
+Then run teleop from a second terminal (Section 4.3).
+
+#### 4.1.2 PX4 shell prestep (failsafes + arm)
+
+SITL has no GCS/RC, so disable the datalink-loss failsafe and arm from the
+`pxh>` shell (in the PX4 SITL terminal). `teleop` also auto-arms via
+`VehicleCommand`, so `commander arm` is only needed for manual bring-up:
+
+```
+pxh> param set NAV_DLL_ACT 0
+pxh> param set COM_CBK_GCS_ACT 0
+pxh> param save
+pxh> commander arm
+```
+
+> `NAV_DLL_ACT 0` = GCS-loss action Disabled (verified in
+> `commander_params.yaml`). `COM_CBK_GCS_ACT` is not a known param in PX4
+> main — confirm with `param show COM_*`; you probably want
+> `COM_DL_LOSS_T` (timeout) or `COM_OBL_ACT`/`COM_OBL_RC_ACT` (offboard-loss
+> action) instead.
+
+#### 4.1.3 Manual method
+
 Requires the MicroXRCE-DDS agent over UDP and PX4 SITL running:
 
 ```bash
 # Terminal 1 - agent
 MicroXRCEAgent udp4 -p 8888 -v
 
-# Terminal 2 - PX4 SITL + Gazebo (from the PX4-Autopilot source directory)
-make px4_sitl gazebo
+# Terminal 2 - PX4 SITL + Gazebo Harmonic (from the PX4-Autopilot source directory)
+PX4_GZ_WORLD=baylands make px4_sitl gz_x500
 
 # Terminal 3 - bring-up
 cd <workspace>/src && source install/setup.bash
@@ -136,7 +176,10 @@ quadcopter_bringup/
 |-- resource/quadcopter_bringup      # Resource marker
 |-- quadcopter_bringup/
 |   `-- __init__.py                  # Python package (nodes live here)
-|-- launch/                          # Launch files (add yours here)
+|-- launch/
+|   `-- sitl_gz.launch.py            # PX4 SITL (gz_x500) + agent + ros_gz_bridge
+|-- config/
+|   `-- sitl_gz_bridge.yaml          # Bridge mapping source of truth
 `-- test/                            # ament_lint tests (flake8, pep257, copyright)
 ```
 

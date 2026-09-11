@@ -1,0 +1,28 @@
+# gz <-> ROS 2 bridge mapping for PX4 SITL (x500) in baylands/forest/default.
+#
+# NOTE: ros-humble-ros-gz-bridge 0.244 (this workspace) configures
+# parameter_bridge via CLI mappings, NOT via this file. The same mappings
+# are baked into launch/sitl_gz.launch.py as node arguments. This file is
+# the human-readable source of truth and works directly with newer
+# (Jazzy+) bridges that accept `config_file`.
+#
+# Direction: GZ_TO_ROS for all entries (drone state flows out of sim).
+# Verify live gz topic names with: gz topic -l | grep -E 'x500|clock'
+
+- ros_topic_name: /clock
+  gz_topic_name: /clock
+  ros_type_name: rosgraph_msgs/msg/Clock
+  gz_type_name: ignition.msgs.Clock
+  direction: GZ_TO_ROS
+
+- ros_topic_name: /model/x500/odometry
+  gz_topic_name: /model/x500/odometry
+  ros_type_name: nav_msgs/msg/Odometry
+  gz_type_name: ignition.msgs.Odometry
+  direction: GZ_TO_ROS
+
+- ros_topic_name: /model/x500/pose
+  gz_topic_name: /model/x500/pose
+  ros_type_name: geometry_msgs/msg/PoseArray
+  gz_type_name: ignition.msgs.Pose_V
+  direction: GZ_TO_ROS
