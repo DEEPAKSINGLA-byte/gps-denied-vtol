@@ -31,6 +31,8 @@ This repository implements a **GPS-denied navigation stack** for VTOL UAVs using
 | Bridge          | `px4_ros_com` + `px4_msgs` (uXRCE-DDS / MicroXRCE-Agent) |
 | Perception      | `quadcopter_perception` (YOLOv8 semantic segmentation)  |
 | Autonomy        | `quadcopter_bringup` (planning, VIO, SLAM nodes)        |
+| Navigation      | `quadcopter_navigation` (Nav2 params + bridge/TF launch)|
+| PX4 bridge      | `quadcopter_px4_bridge` (Nav2 `/cmd_vel_nav` → PX4 offboard) |
 | Sensors         | SC132GS Binocular Stereo Camera, IMU (on FC)            |
 | Compute         | Raspberry Pi 5 (8GB)                                    |
 | Simulation      | Gazebo Ignition (SITL)                                  |
@@ -83,9 +85,16 @@ gps-denied-vtol/
 |-- hardware/                    # Mechanical / airframe docs
 |-- electrical/                  # Wiring diagrams, schematics
 |-- software/                    # ROS 2 workspace root
-|   |-- src/
+|   |-- src/                     # colcon workspace: ALL ROS packages live here
 |   |   |-- quadcopter_bringup/  # Autonomy bringup package (Python)
 |   |   |-- quadcopter_perception/ # Perception: YOLOv8 semantic segmentation
+|   |   |-- quadcopter_localization/ # VIO / state-estimation helpers
+|   |   |-- quadcopter_mapping/  # Mapping helpers
+|   |   |-- quadcopter_px4_bridge/ # Nav2 -> PX4 offboard bridge (Python)
+|   |   |-- quadcopter_navigation/ # Nav2 params + bridge/static-TF launch
+|   |   |-- x500_px4_bridge/     # Legacy Nav2 -> PX4 bridge (mirrored by quadcopter_px4_bridge)
+|   |   |-- x500_navigation/     # Legacy Nav2 params + launch (mirrored by quadcopter_navigation)
+|   |   |-- m-explore-ros2/      # Vendored frontier exploration (explore, map_merge)
 |   |   |-- px4_ros_com/         # PX4 <-> ROS 2 bridge + examples
 |   |   |-- px4_msgs/            # PX4 uORB message/service definitions
 |   |   |-- build/               # colcon build output (gitignored)
@@ -146,6 +155,12 @@ colcon build --packages-select quadcopter_perception
 
 # Build PX4 interface packages
 colcon build --packages-select px4_msgs px4_ros_com
+
+# Build Nav2 quadcopter stack (bridge + navigation config/launch)
+colcon build --packages-select quadcopter_px4_bridge quadcopter_navigation
+
+# Legacy Nav2 x500 stack (mirrored by the quadcopter packages above)
+colcon build --packages-select x500_px4_bridge x500_navigation
 
 # Release build for performance (Raspberry Pi 5 deployment)
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=RELWITHDEBINFO --symlink-install
@@ -335,7 +350,51 @@ ros2 run ros_gz_bridge parameter_bridge \
 ros2 run quadcopter_bringup teleop
 ```
 
-### 6.6 Bringup - Hardware (Real Robot)
+### 6.6 Autonomous Navigation via Nav2 (quadcopter floorplan sim)
+
+Alternative SITL stack for **autonomous** (goal-driven) flight in the
+`floorplan` world, using the `quadcopter_navigation` package: 2D LiDAR +
+SLAM Toolbox + Nav2 + the `quadcopter_px4_bridge` offboard node. Open **5
+terminals**, one block per terminal, in order (source
+`software/src/install/setup.bash` in each ROS terminal):
+
+```bash
+# Terminal 1 - PX4 SITL + Gazebo (from the PX4-Autopilot source directory)
+PX4_GZ_NO_FOLLOW=1 PX4_GZ_MODEL_POSE="7.5,7.5,0.2" PX4_GZ_WORLD=floorplan make px4_sitl gz_x500_lidar_2d
+
+# Terminal 2 - MicroXRCE agent + ros_gz_bridge (/scan, /clock) + static TF
+cd software/src && source install/setup.bash
+ros2 launch quadcopter_navigation bridge_and_tf.launch.py
+
+# Terminal 3 - SLAM Toolbox (map building + localization)
+cd software/src && source install/setup.bash
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=true
+
+# Terminal 4 - Nav2 (planning, costmaps, behavior trees)
+cd software/src && source install/setup.bash
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true \
+  params_file:=$(ros2 pkg prefix quadcopter_navigation)/share/quadcopter_navigation/config/nav2_quadcopter.yaml
+
+# Terminal 5 - PX4 control bridge (/cmd_vel_nav -> TrajectorySetpoint + OFFBOARD + arm)
+cd software/src && source install/setup.bash
+ros2 run quadcopter_px4_bridge quadcopter_px4_bridge --ros-args -p use_sim_time:=true
+```
+
+Then open RViz2 (`source /opt/ros/humble/setup.bash && rviz2`),
+subscribe to `/map` and `/scan`, and send a Nav2 goal. Nav2 publishes
+geometry `Twist` on `/cmd_vel_nav`; the bridge clamps it to 0.25 m/s,
+holds 1.5 m altitude, applies a LiDAR emergency stop, and converts it to
+PX4 setpoints. See `software/src/quadcopter_navigation/README.md` for details.
+
+> NOTE: the `x500_navigation` / `x500_px4_bridge` packages are legacy
+> mirrors of this stack (`nav2_x500.yaml`, same launch/bridge). Prefer the
+> `quadcopter_*` packages above for new work.
+
+> NOTE: `bridge_and_tf.launch.py` no longer starts the old `tf2.py`
+> odometry publisher (that script was never committed). The `odom` ->
+> `base_footprint` transform must come from the SLAM/odometry pipeline.
+
+### 6.7 Bringup - Hardware (Real Robot)
 
 1. Power the airframe; confirm the Kakute H7 boots and the Raspberry Pi 5 links over UART.
 2. Set `UXRCE_DDS_CFG` = TELEM2 and `SER_TEL2_BAUD` = 921600 in QGroundControl and reboot the flight controller.
@@ -349,7 +408,7 @@ cd software/src && source install/setup.bash
 ros2 run quadcopter_bringup teleop
 ```
 
-### 6.7 Controlling the Quadcopter (Keyboard Teleop)
+### 6.8 Controlling the Quadcopter (Keyboard Teleop)
 
 `quadcopter_bringup` ships a keyboard teleop node that drives the PX4 velocity setpoints in Offboard mode over uXRCE-DDS:
 
@@ -372,7 +431,7 @@ ros2 run quadcopter_bringup teleop
 
 The node publishes `OffboardControlMode` and `TrajectorySetpoint` at 20 Hz, switches PX4 to **Offboard** mode after ~15 setpoints, and sends the **arm** command after ~30. Always keep the RC transmitter in an override-capable mode and test in SITL before hardware.
 
-### 6.8 Common Runtime Checks
+### 6.9 Common Runtime Checks
 
 ```bash
 # Lifecycle state (if the node is lifecycle-managed)
@@ -408,6 +467,9 @@ colcon test-result --verbose
 
 # Perception package tests
 colcon test --packages-select quadcopter_perception
+
+# Navigation + PX4 bridge packages
+colcon test --packages-select quadcopter_navigation quadcopter_px4_bridge
 
 # px4_ros_com unit + pipeline tests
 colcon test --packages-select px4_ros_com

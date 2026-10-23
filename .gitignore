@@ -1,7 +1,15 @@
 .vscode
+# colcon build artifacts (any workspace location)
+build/
+install/
+log/
 software/src/build
 software/src/install
 software/src/log
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
 # Model weights and checkpoints
 *.pt
 *.pth
