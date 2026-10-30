@@ -38,7 +38,7 @@ simulation and hardware deployment.
 ## 3. Building the Package
 
 ```bash
-cd <workspace>/src
+cd ~/gps-denied-vtol/ros2_ws
 source /opt/ros/humble/setup.bash
 
 # Build everything (fastest when starting fresh)
@@ -78,7 +78,7 @@ colcon build --packages-select quadcopter_bringup --symlink-install
 not `ign` (6.x), as required by PX4 main:
 
 ```bash
-cd <workspace>/src && source install/setup.bash
+cd ~/gps-denied-vtol/ros2_ws && source install/setup.bash
 
 ros2 launch quadcopter_bringup sitl_gz.launch.py
 ros2 launch quadcopter_bringup sitl_gz.launch.py world:=forest
@@ -120,7 +120,7 @@ MicroXRCEAgent udp4 -p 8888 -v
 PX4_GZ_WORLD=baylands make px4_sitl gz_x500
 
 # Terminal 3 - bring-up
-cd <workspace>/src && source install/setup.bash
+cd ~/gps-denied-vtol/ros2_ws && source install/setup.bash
 ros2 run quadcopter_bringup teleop
 ```
 
@@ -132,7 +132,7 @@ Requires the agent on UART and PX4 powered (with `UXRCE_DDS_CFG` = TELEM2 and
 ```bash
 MicroXRCEAgent serial --dev /dev/ttyTHS1 -b 921600
 
-cd <workspace>/src && source install/setup.bash
+cd ~/gps-denied-vtol/ros2_ws && source install/setup.bash
 ros2 run quadcopter_bringup teleop
 ```
 
@@ -231,7 +231,7 @@ ros2 launch quadcopter_bringup <name>.launch.py
 ## 7. Testing
 
 ```bash
-cd <workspace>/src
+cd ~/gps-denied-vtol/ros2_ws
 source /opt/ros/humble/setup.bash
 
 # Run lint + tests for this package

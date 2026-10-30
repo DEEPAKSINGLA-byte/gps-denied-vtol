@@ -22,11 +22,14 @@ PX4_GZ_NO_FOLLOW=1 PX4_GZ_MODEL_POSE="7.5,7.5,0.2" PX4_GZ_WORLD=floorplan make p
 ```
 
 ### Terminal 2: Start ROS-Gazebo Bridges & Odometry TF
-This establishes the necessary communication between PX4/Gazebo and ROS 2. It starts the `MicroXRCEAgent` for PX4 telemetry, the `ros_gz_bridge` for `/scan` and clock synchronization, and the `tf2.py` script to broadcast the `odom` → `base_footprint` transform.
+This establishes communication between PX4/Gazebo and ROS 2. It starts `MicroXRCEAgent` for PX4 telemetry, `ros_gz_bridge` for `/scan` and clock synchronization, and broadcasts the `odom` → `base_footprint` transform.
+
+Standard ROS 2 command:
 ```bash
 source /home/deepak/gps-denied-vtol/ros2_ws/install/setup.bash
-ros2 launch /home/deepak/gps-denied-vtol/nav2/bridge_and_tf.launch.py
+ros2 launch x500_navigation bridge_and_tf.launch.py
 ```
+*(Legacy path `ros2 launch /home/deepak/gps-denied-vtol/nav2/bridge_and_tf.launch.py` is also supported for backward compatibility)*
 
 ### Terminal 3: Start SLAM Toolbox
 This node processes the incoming 2D LiDAR scans to construct a map of the environment and localize the drone within it.
@@ -47,6 +50,16 @@ This runs our custom node that converts `/cmd_vel_nav` twist commands from Nav2 
 ```bash
 source /home/deepak/gps-denied-vtol/ros2_ws/install/setup.bash
 ros2 run x500_px4_bridge x500_px4_bridge --ros-args -p use_sim_time:=true
+```
+*(LiDAR safety is turned off by default. To re-enable it on demand, add `-p safety_enabled:=true`)*
+
+---
+
+### Optional: Autonomous Frontier Exploration
+To automatically explore and map the environment without manually setting 2D nav goals in RViz:
+```bash
+source /home/deepak/gps-denied-vtol/ros2_ws/install/setup.bash
+ros2 launch explore_lite explore.launch.py use_sim_time:=true
 ```
 
 ## Visualization
