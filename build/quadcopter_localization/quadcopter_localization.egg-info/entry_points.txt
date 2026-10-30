@@ -1,3 +1,0 @@
-[console_scripts]
-visual_odometry_bridge = quadcopter_localization.visual_odometry_bridge:main
-

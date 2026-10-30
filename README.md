@@ -176,25 +176,25 @@ We explore **15 candidate navigation modalities**, narrow them through a statist
 
 | Chart | File |
 | :--- | :--- |
-| SWaP trade-off (payload vs power, bubble = drift) | `1_swap_tradeoff.png` |
-| Drift-rate benchmark | `2_drift_rate_comparison.png` |
-| Hardware cost benchmark (INR) | `3_cost_benchmark_inr.png` |
-| Environmental robustness heatmap | `4_robustness_heatmap.png` |
-| Cost-effectiveness (drift vs cost) | `5_cost_effectiveness.png` |
-| Weight penalty (drift vs payload) | `6_drift_vs_payload.png` |
-| Total robustness ranking | `7_robustness_total.png` |
-| Cost distribution per category | `8_cost_by_category.png` |
-| Multi-criteria radar profiles | `9_radar_profiles.png` |
-| Update rate vs drift | `10_update_rate_vs_drift.png` |
-| Range vs drift | `11_range_vs_drift.png` |
-| MCDA top-3 scenario scores | `12_mcda_scenarios.png` |
+| SWaP trade-off (payload vs power, bubble = drift) | `benchmarking/1_swap_tradeoff.png` |
+| Drift-rate benchmark | `benchmarking/2_drift_rate_comparison.png` |
+| Hardware cost benchmark (INR) | `benchmarking/3_cost_benchmark_inr.png` |
+| Environmental robustness heatmap | `benchmarking/4_robustness_heatmap.png` |
+| Cost-effectiveness (drift vs cost) | `benchmarking/5_cost_effectiveness.png` |
+| Weight penalty (drift vs payload) | `benchmarking/6_drift_vs_payload.png` |
+| Total robustness ranking | `benchmarking/7_robustness_total.png` |
+| Cost distribution per category | `benchmarking/8_cost_by_category.png` |
+| Multi-criteria radar profiles | `benchmarking/9_radar_profiles.png` |
+| Update rate vs drift | `benchmarking/10_update_rate_vs_drift.png` |
+| Range vs drift | `benchmarking/11_range_vs_drift.png` |
+| MCDA top-3 scenario scores | `benchmarking/12_mcda_scenarios.png` |
 
 </details>
 
-![SWaP Trade-Off](1_swap_tradeoff.png)
-![Drift Rate Benchmark](2_drift_rate_comparison.png)
-![Cost Benchmark](3_cost_benchmark_inr.png)
-![Robustness Heatmap](4_robustness_heatmap.png)
+![SWaP Trade-Off](benchmarking/1_swap_tradeoff.png)
+![Drift Rate Benchmark](benchmarking/2_drift_rate_comparison.png)
+![Cost Benchmark](benchmarking/3_cost_benchmark_inr.png)
+![Robustness Heatmap](benchmarking/4_robustness_heatmap.png)
 
 ---
 

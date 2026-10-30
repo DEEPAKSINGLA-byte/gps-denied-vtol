@@ -1,7 +1,33 @@
-.vscode
-software/src/build
-software/src/install
-software/src/log
+# ROS 2 Build, Install, and Log artifacts
+build/
+install/
+log/
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+software/build/
+software/install/
+software/log/
+software/src/build/
+software/src/install/
+software/src/log/
+
+# Python artifacts
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.pytest_cache/
+
+# Colcon / IDE / OS files
+.colcon/
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
 # Model weights and checkpoints
 *.pt
 *.pth

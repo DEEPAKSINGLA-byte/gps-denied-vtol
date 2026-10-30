@@ -24,7 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'x500_px4_bridge = x500_px4_bridge.x500_px4_bridge:main'
+            'x500_px4_bridge = x500_px4_bridge.x500_px4_bridge:main',
+            'tf2_broadcaster = x500_px4_bridge.tf2_broadcaster:main',
         ],
     },
 )

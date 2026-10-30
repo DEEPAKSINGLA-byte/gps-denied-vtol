@@ -1,1 +1,0 @@
-/home/deepak/PX4-Autopilot/ros2_ws/build/explore_lite/ament_cmake_core/explore_liteConfig-version.cmake
