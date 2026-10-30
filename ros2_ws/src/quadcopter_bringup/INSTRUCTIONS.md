@@ -30,8 +30,8 @@ simulation and hardware deployment.
 
 - ROS 2 Humble installed and sourced (`source /opt/ros/humble/setup.bash`).
 - A built workspace containing `px4_msgs` and `px4_ros_com`.
-- The MicroXRCE-DDS agent running for PX4 connectivity (see the root
-  [INSTRUCTIONS.md](../../INSTRUCTIONS.md)).
+- The MicroXRCE-DDS agent running for PX4 connectivity (see
+  [INSTRUCTIONS.md](../../docs/INSTRUCTIONS.md)).
 
 ---
 
@@ -246,6 +246,6 @@ licensing. Keep them green before merging.
 
 ## See Also
 
-- [../../INSTRUCTIONS.md](../../INSTRUCTIONS.md) - Root workspace build & launch
+- [../../docs/INSTRUCTIONS.md](../../docs/INSTRUCTIONS.md) - Root workspace build & launch
 - [../px4_ros_com/README.md](../px4_ros_com/README.md) - PX4 bridge examples
 - [../px4_msgs/README.md](../px4_msgs/README.md) - Message definitions

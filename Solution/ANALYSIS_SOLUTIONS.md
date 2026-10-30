@@ -1,1 +1,0 @@
-../docs/ANALYSIS_SOLUTIONS.md

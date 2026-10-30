@@ -5,12 +5,6 @@ log/
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
-software/build/
-software/install/
-software/log/
-software/src/build/
-software/src/install/
-software/src/log/
 
 # Python artifacts
 **/__pycache__/

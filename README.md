@@ -35,12 +35,12 @@
 
 | Resource | Description |
 | :--- | :--- |
-| [Problem Statement](PROBLEM_STATEMENT.md) | Formal problem definition, state-space math, MAP formulation, KPIs |
-| [Candidate Solutions](SOLUTIONS.md) | 15 hardware/software architectures for GPS-denied navigation |
-| [Quantitative Analysis](ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
-| [Bill of Materials](BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
-| [Build & Setup Instructions](INSTRUCTIONS.md) | Complete workspace build, launch, and development guidelines |
-| [Nav2 Simulation Guide](nav2_readme.md) | Gazebo Harmonic + Nav2 + SLAM Toolbox simulation walkthrough |
+| [Problem Statement](docs/PROBLEM_STATEMENT.md) | Formal problem definition, state-space math, MAP formulation, KPIs |
+| [Candidate Solutions](docs/SOLUTIONS.md) | 15 hardware/software architectures for GPS-denied navigation |
+| [Quantitative Analysis](docs/ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
+| [Bill of Materials](docs/BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
+| [Build & Setup Instructions](docs/INSTRUCTIONS.md) | Complete workspace build, launch, and development guidelines |
+| [Nav2 Simulation Guide](docs/nav2_readme.md) | Gazebo Harmonic + Nav2 + SLAM Toolbox simulation walkthrough |
 | [Google Drive — Documents](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) | All related documentation & design artifacts |
 | [Semantic Mapping Demo](https://youtu.be/XxDwwBQxVR0) | YOLOv8 real-time semantic segmentation for robotics (from `ros2_ws/src/quadcopter_perception`) |
 
@@ -228,9 +228,7 @@ gps-denied-vtol/
 │       ├── quadcopter_perception/       # Vision & segmentation
 │       ├── quadcopter_mapping/          # SLAM & mapping utilities
 │       └── m-explore-ros2/              # explore_lite & multirobot_map_merge
-└── nav2/                                # Backward-compatibility launcher directory
-    ├── bridge_and_tf.launch.py
-    └── tf2.py
+└── README.md
 ```
 
 ---
@@ -250,7 +248,7 @@ source install/setup.bash
 
 ### 2. Run the Gazebo + Nav2 Simulation
 
-See the detailed multi-terminal walkthrough in [nav2_readme.md](nav2_readme.md).
+See the detailed multi-terminal walkthrough in [nav2_readme.md](docs/nav2_readme.md).
 
 ### 3. Regenerate Quantitative Analysis
 
