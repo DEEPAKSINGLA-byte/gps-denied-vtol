@@ -65,7 +65,7 @@ class X500PX4Bridge(Node):
         self.declare_parameter('cmd_timeout_s', 0.50)
 
         # LiDAR safety parameters
-        self.declare_parameter('safety_enabled', True)
+        self.declare_parameter('safety_enabled', False)
         self.declare_parameter('hard_stop_distance_m', 0.45)
         self.declare_parameter('directional_stop_distance_m', 0.65)
         self.declare_parameter('directional_sector_deg', 45.0)
@@ -170,7 +170,8 @@ class X500PX4Bridge(Node):
         self.get_logger().info(
             f'cmd_vel={self.cmd_vel_topic}, scan={self.scan_topic}, '
             f'target_altitude={self.target_altitude_m:.2f} m, '
-            f'max_xy_speed={self.max_xy_speed:.2f} m/s'
+            f'max_xy_speed={self.max_xy_speed:.2f} m/s, '
+            f'safety_enabled={self.safety_enabled}'
         )
         self.get_logger().info(
             'PX4 convention: vx_px4=vy_ros_odom, vy_px4=vx_ros_odom, vz_px4=-vz_ros'

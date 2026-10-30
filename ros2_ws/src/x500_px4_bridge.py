@@ -33,7 +33,7 @@ class X500PX4Bridge(Node):
         self.declare_parameter('cmd_timeout_s', 0.50)
 
         # LiDAR safety parameters
-        self.declare_parameter('safety_enabled', True)
+        self.declare_parameter('safety_enabled', False)
         self.declare_parameter('hard_stop_distance_m', 0.45)
         self.declare_parameter('directional_stop_distance_m', 0.65)
         self.declare_parameter('directional_sector_deg', 45.0)
