@@ -1,6 +1,11 @@
+import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+out_dir = os.path.join(repo_root, "benchmarking")
+os.makedirs(out_dir, exist_ok=True)
 
 # Set global aesthetic theme
 sns.set_theme(style="whitegrid")
@@ -65,7 +70,7 @@ for _, row in df.iterrows():
         )
 
 plt.tight_layout()
-plt.savefig("1_swap_tradeoff.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "1_swap_tradeoff.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -87,7 +92,7 @@ for bar in bars_drift:
     ax.text(width + 0.05, bar.get_y() + bar.get_height()/2, label, ha='left', va='center', fontsize=8.5)
 
 plt.tight_layout()
-plt.savefig("2_drift_rate_comparison.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "2_drift_rate_comparison.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -110,7 +115,7 @@ for bar in bars_cost:
     ax.text(width * 1.05, bar.get_y() + bar.get_height()/2, label_text, ha='left', va='center', fontsize=8.5, weight='bold')
 
 plt.tight_layout()
-plt.savefig("3_cost_benchmark_inr.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "3_cost_benchmark_inr.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -152,7 +157,7 @@ plt.xlabel("Operational Challenge / Failure Mode", fontsize=11)
 plt.ylabel("Navigation Modality", fontsize=11)
 
 plt.tight_layout()
-plt.savefig("4_robustness_heatmap.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "4_robustness_heatmap.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -190,7 +195,7 @@ for _, row in df.iterrows():
         )
 
 plt.tight_layout()
-plt.savefig("5_cost_effectiveness.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "5_cost_effectiveness.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -228,7 +233,7 @@ for _, row in df.iterrows():
         )
 
 plt.tight_layout()
-plt.savefig("6_drift_vs_payload.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "6_drift_vs_payload.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -249,7 +254,7 @@ for bar in bars_rob:
     ax.text(width + 0.15, bar.get_y() + bar.get_height()/2, f"{width:.0f}", ha='left', va='center', fontsize=9, weight='bold')
 
 plt.tight_layout()
-plt.savefig("7_robustness_total.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "7_robustness_total.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -266,7 +271,7 @@ plt.ylabel("Estimated Hardware Cost (INR) [Log Scale]", fontsize=11)
 plt.xticks(rotation=15)
 
 plt.tight_layout()
-plt.savefig("8_cost_by_category.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "8_cost_by_category.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -318,7 +323,7 @@ for ax, sol in zip(axes.flatten(), radar_solutions):
 
 fig.suptitle("Normalized Multi-Criteria Radar Profiles for Key Navigation Modalities", fontsize=14, fontweight='bold', y=1.02)
 plt.tight_layout()
-plt.savefig("9_radar_profiles.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "9_radar_profiles.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -356,7 +361,7 @@ for _, row in df.iterrows():
         )
 
 plt.tight_layout()
-plt.savefig("10_update_rate_vs_drift.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "10_update_rate_vs_drift.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -394,7 +399,7 @@ for _, row in df.iterrows():
         )
 
 plt.tight_layout()
-plt.savefig("11_range_vs_drift.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "11_range_vs_drift.png"), dpi=300)
 plt.show()
 
 # ---------------------------------------------------------
@@ -434,5 +439,5 @@ for ax, (scenario, entries) in zip(axes, scenarios.items()):
 
 fig.suptitle("MCDA Top-3 Ranked Solutions by Mission Profile", fontsize=13, fontweight='bold')
 plt.tight_layout()
-plt.savefig("12_mcda_scenarios.png", dpi=300)
+plt.savefig(os.path.join(out_dir, "12_mcda_scenarios.png"), dpi=300)
 plt.show()
