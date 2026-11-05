@@ -202,7 +202,50 @@ python3 sensor_telemetry.py --log flight_data.csv --rate 10
 
 ---
 
-### 4. Unified Drone CLI (`drone_cli.py`)
+### 4. Wireless Telemetry Streaming over Wi-Fi (Redmi 10 Network)
+
+You can wirelessly stream live Pixhawk flight telemetry and raw MAVLink packets directly from the Raspberry Pi to your ground laptop over any Wi-Fi network (e.g. **Redmi 10** hotspot).
+
+```
+ ┌────────────────────────────────────┐             ┌────────────────────────────────────┐
+ │  Raspberry Pi (10.184.3.36)        │             │  Ground Laptop (10.184.3.231)      │
+ │  (Connected to Pixhawk /dev/ttyACM)│             │                                    │
+ │                                    │  Redmi 10   │  • laptop_telemetry_receiver.py    │
+ │  • telemetry_streamer.py           │─── Wi-Fi ──▶│  • QGroundControl / MissionPlanner │
+ │    - MAVLink stream (port 14550)   │    (UDP)    │    (Listens on UDP 14550)          │
+ │    - JSON stream    (port 14551)   │             │  • Custom Python / ROS 2 nodes     │
+ └────────────────────────────────────┘             └────────────────────────────────────┘
+```
+
+#### Step 1: On the Raspberry Pi
+Run the telemetry streamer specifying your laptop's IP address:
+```bash
+# Stream both MAVLink (port 14550) and JSON telemetry (port 14551) at 10 Hz
+python3 telemetry_streamer.py --target-ip 10.184.3.231 --rate 10
+
+# Or run in the background as a daemon
+nohup python3 telemetry_streamer.py --target-ip 10.184.3.231 --rate 10 > ~/streamer.log 2>&1 &
+```
+
+#### Step 2: On Your Laptop
+Verify data reception and inspect live flight telemetry:
+```bash
+# 1. Run automated telemetry integrity verification
+python3 laptop_telemetry_receiver.py --verify
+
+# 2. Open live interactive dashboard on your laptop
+python3 laptop_telemetry_receiver.py
+
+# 3. Stream and log incoming flight telemetry directly to CSV on your laptop
+python3 laptop_telemetry_receiver.py --log flight_log.csv
+```
+
+#### Step 3: Connecting Ground Control Stations (QGroundControl / Mission Planner)
+Because the Raspberry Pi forwards the raw MAVLink stream over UDP port `14550`, standard Ground Control Stations (QGC / Mission Planner) will automatically detect the vehicle and connect wirelessly as soon as they open!
+
+---
+
+### 5. Unified Drone CLI (`drone_cli.py`)
 
 A single tool that offers both an **interactive control shell** and convenient single-command flags.
 
