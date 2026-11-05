@@ -351,7 +351,62 @@ for mask_info in results["masks"]:
 
 ---
 
-### 7. Unified Drone CLI (`drone_cli.py`)
+### 7. Real-Time Telemetry Plotting in PlotJuggler
+
+You can plot all live Pixhawk sensor timeseries curves in **PlotJuggler** in real-time on your laptop.
+
+```
+ ┌──────────────────────────────────────┐             ┌──────────────────────────────────────────────┐
+ │  Raspberry Pi 4 (10.184.3.36)        │             │  Ground Laptop (10.184.3.231)                │
+ │  • Connected to Pixhawk              │  Redmi 10   │  • plotjuggler_bridge.py                     │
+ │  • telemetry_streamer.py             │─── Wi-Fi ──▶│    - Forwards to UDP 9870 (JSON)             │
+ │    - Sends live telemetry (10 Hz)    │   UDP 14551 │    - Publishes ROS 2 topics (/drone/*)       │
+ │                                      │             │    - Writes plotjuggler_live.csv             │
+ │                                      │             │  • PlotJuggler GUI                           │
+ │                                      │             │    - Pre-configured layout (4 live subplots) │
+ └──────────────────────────────────────┘             └──────────────────────────────────────────────┘
+```
+
+#### Option 1: 1-Click Launch (Recommended)
+On your laptop, simply run the automated launcher script:
+```bash
+cd ~/gps-denied-vtol/raspberry_pi
+./launch_plotjuggler.sh
+```
+This automatically starts the telemetry bridge in the background and opens PlotJuggler with the pre-arranged 4-window layout ([`plotjuggler_drone_layout.xml`](file:///home/deepak/gps-denied-vtol/raspberry_pi/plotjuggler_drone_layout.xml)):
+1. **Attitude Angles (°):** Roll, Pitch, Yaw
+2. **IMU Accelerometer (mg):** Accel X, Y, Z
+3. **IMU Gyroscope (°/s):** Angular rates Roll/Pitch/Yaw speed
+4. **Altitude & Barometer:** Altitude (m) and Air Pressure (hPa)
+
+To start streaming in the opened PlotJuggler window:
+* Under the left sidebar **Streaming**, select **UDP Server** and click **Start**!
+* *(Or select **ROS2 Topic Subscriber**, click **Start**, and check `/drone/attitude`, `/drone/imu`, `/drone/altitude`)*.
+
+---
+
+#### Option 2: Manual Step-by-Step Launch
+
+1. **Start the Telemetry Bridge on the Laptop:**
+   ```bash
+   cd ~/gps-denied-vtol/raspberry_pi
+   python3 plotjuggler_bridge.py --ros2
+   ```
+   *(Forwards live data to PlotJuggler UDP port `9870` and publishes ROS 2 topics).*
+
+2. **Open PlotJuggler with the Drone Layout:**
+   ```bash
+   source /opt/ros/humble/setup.bash
+   ros2 run plotjuggler plotjuggler -l plotjuggler_drone_layout.xml
+   ```
+
+3. **In PlotJuggler:**
+   * In the bottom-left **Streaming** box, choose **UDP Server** and click **Start** (configured to port `9870`, Protocol: `JSON`).
+   * The live curves will instantly begin animating across the 4 plots!
+
+---
+
+### 8. Unified Drone CLI (`drone_cli.py`)
 
 A single tool that offers both an **interactive control shell** and convenient single-command flags.
 

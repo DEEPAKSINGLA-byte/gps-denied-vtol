@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root>
+ <tabbed_widget parent="main_window" name="Main Window">
+  <Tab containers="1" tab_name="Drone Real-Time Telemetry">
+   <Container>
+    <DockSplitter count="2" orientation="-" sizes="0.5;0.5">
+     <DockSplitter count="2" orientation="|" sizes="0.5;0.5">
+      <DockArea name="Attitude Angles (°)">
+       <plot style="Lines" mode="TimeSeries" flip_y="false" flip_x="false">
+        <limitY/>
+        <curve color="#1f77b4" name="attitude/roll_deg"/>
+        <curve color="#ff7f0e" name="attitude/pitch_deg"/>
+        <curve color="#2ca02c" name="attitude/yaw_deg"/>
+       </plot>
+      </DockArea>
+      <DockArea name="IMU Accelerometer (mg)">
+       <plot style="Lines" mode="TimeSeries" flip_y="false" flip_x="false">
+        <limitY/>
+        <curve color="#d62728" name="imu/accel_x_mg"/>
+        <curve color="#9467bd" name="imu/accel_y_mg"/>
+        <curve color="#8c564b" name="imu/accel_z_mg"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+     <DockSplitter count="2" orientation="|" sizes="0.5;0.5">
+      <DockArea name="IMU Gyroscope (°/s)">
+       <plot style="Lines" mode="TimeSeries" flip_y="false" flip_x="false">
+        <limitY/>
+        <curve color="#e377c2" name="imu/gyro_x_dps"/>
+        <curve color="#7f7f7f" name="imu/gyro_y_dps"/>
+        <curve color="#bcbd22" name="imu/gyro_z_dps"/>
+       </plot>
+      </DockArea>
+      <DockArea name="Altitude (m) &amp; Barometer (hPa)">
+       <plot style="Lines" mode="TimeSeries" flip_y="false" flip_x="false">
+        <limitY/>
+        <curve color="#17becf" name="hud/alt_m"/>
+        <curve color="#ffbb78" name="baro/pressure_hpa"/>
+        <curve color="#98df8a" name="battery/voltage_v"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <currentTabIndex index="0"/>
+ </tabbed_widget>
+ <use_relative_time_offset enabled="1"/>
+ <Plugins>
+  <plugin ID="DataLoad CSV">
+   <default delimiter="0" time_axis="timestamp"/>
+  </plugin>
+  <plugin ID="UDP Server"/>
+ </Plugins>
+</root>
