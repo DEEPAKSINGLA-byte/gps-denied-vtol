@@ -42,24 +42,45 @@ The suite provides programmatic and interactive control to:
 
 | Connection Type | Physical Port on RPi | Pixhawk Port | Linux Device Node | Default Baud |
 | :--- | :--- | :--- | :--- | :--- |
-| **USB Cable (Default)** | Standard USB 2.0 / 3.0 | Micro-USB Port | `/dev/ttyACM0` | `115200` |
+| **USB Cable (Persistent)** | Standard USB 2.0 / 3.0 | Micro-USB Port | `/dev/pixhawk` *(symlinked from `/dev/ttyACM*`)* | `115200` |
+| **USB Cable (Dynamic)** | Standard USB 2.0 / 3.0 | Micro-USB Port | `/dev/ttyACM0` or `/dev/ttyACM1` | `115200` |
 | **UART Telemetry Cable** | GPIO 14 (TX) & 15 (RX) | TELEM1 or TELEM2 | `/dev/serial0` | `57600` or `921600` |
-
-> [!NOTE]
-> All scripts in this directory feature **automatic port detection**. They probe `/dev/ttyACM*`, `/dev/ttyUSB*`, and `/dev/serial0*` at common baud rates (`115200`, `57600`, `921600`) and lock onto the active MAVLink heartbeat automatically.
 
 ---
 
 ## Installation & Setup on Raspberry Pi
 
-### 1. User Permissions
+### 1. Install Persistent udev Rule (`/dev/pixhawk`)
+When a drone vibrates, moves, or additional USB devices (like cameras) are plugged in, Linux can dynamically re-enumerate the Pixhawk from `/dev/ttyACM0` to `/dev/ttyACM1`. 
+
+To prevent broken connections, a dedicated udev rule creates a persistent `/dev/pixhawk` symlink and sets permissions (`0666`):
+
+```bash
+# Run the automated installer (on Raspberry Pi or Laptop)
+sudo ./install_udev_rules.sh
+```
+Or manually:
+```bash
+sudo cp 99-pixhawk.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+**Verify the persistent link:**
+```bash
+ls -la /dev/pixhawk
+# Output: /dev/pixhawk -> ttyACM1 (or ttyACM0)
+```
+All scripts prioritize `/dev/pixhawk` automatically before scanning fallback ports.
+
+### 2. User Permissions
 Ensure the current Linux user belongs to the `dialout` group to access serial ports without `sudo`:
 ```bash
 sudo usermod -aG dialout $USER
 ```
 *(Log out and back in, or run `newgrp dialout` for changes to take effect).*
 
-### 2. Install Python Dependencies
+### 3. Install Python Dependencies
 Install the required packages (`pymavlink` and `pyserial`):
 ```bash
 pip install -r requirements.txt --break-system-packages
@@ -524,6 +545,42 @@ If performing extensive indoor testing, connect to the flight controller via Mis
 - **`ALT_HOLD` (Altitude Hold):** Uses the barometer and ultrasonic/lidar rangefinder for vertical height holding. Pitch and roll remain manual/stabilized. Highly recommended for initial indoor testing.
 - **`POSHOLD` (Position Hold):** Requires either GPS or a valid indoor optical flow / visual-inertial odometry source. If no position sensor is configured, Pixhawk will reject switching to `POSHOLD`.
 - **`LAND`:** Automatic controlled descent using barometer/rangefinder, shuts down motors upon touchdown.
+
+---
+
+## Process Management: Starting & Stopping Ongoing Services
+
+To inspect or cleanly terminate background flight, telemetry, and camera streaming processes on either the Raspberry Pi or Laptop:
+
+### 1. Stopping All Ongoing Processes
+
+#### On the Ground Laptop:
+```bash
+# Terminate telemetry bridge, PlotJuggler, and camera receivers
+pkill -f plotjuggler_bridge.py
+pkill -f plotjuggler
+pkill -f camera_receiver.py
+pkill -f live_segmentation.py
+pkill -f laptop_telemetry_receiver.py
+```
+
+#### On the Raspberry Pi:
+```bash
+# Terminate telemetry and camera streamers
+ssh deimos@10.184.3.36 "pkill -f telemetry_streamer.py; pkill -f camera_streamer.py"
+```
+
+### 2. Checking Active Background Processes
+
+#### On the Laptop:
+```bash
+ps aux | grep -E 'plotjuggler|telemetry|camera' | grep -v grep
+```
+
+#### On the Raspberry Pi:
+```bash
+ssh deimos@10.184.3.36 "ps aux | grep -E 'telemetry|camera' | grep -v grep"
+```
 
 ---
 

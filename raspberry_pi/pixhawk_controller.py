@@ -143,13 +143,17 @@ class PixhawkVehicle:
     def detect_serial_port() -> Optional[str]:
         """
         Scan Linux serial devices to find connected Pixhawk.
+        Prioritizes persistent udev symlink /dev/pixhawk.
         """
         candidates = []
-        # Check standard USB ACM devices (Pixhawk native USB)
+        # Priority 1: Persistent udev rule symlink
+        if os.path.exists("/dev/pixhawk"):
+            candidates.append("/dev/pixhawk")
+        # Priority 2: Standard USB ACM devices (Pixhawk native USB)
         candidates.extend(sorted(glob.glob("/dev/ttyACM*")))
-        # Check USB serial FTDI/CP210x devices
+        # Priority 3: USB serial FTDI/CP210x devices
         candidates.extend(sorted(glob.glob("/dev/ttyUSB*")))
-        # Check Raspberry Pi hardware UARTs
+        # Priority 4: Raspberry Pi hardware UARTs
         if os.path.exists("/dev/serial0"):
             candidates.append("/dev/serial0")
         if os.path.exists("/dev/ttyAMA0"):

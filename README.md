@@ -40,6 +40,8 @@
 | [Quantitative Analysis](docs/ANALYSIS_SOLUTIONS.md) | Statistical decision-matrix analysis of those 15 solutions |
 | [Bill of Materials](docs/BOM.md) | Hardware BOM with pricing (INR) and selection rationale |
 | [Build & Setup Instructions](docs/INSTRUCTIONS.md) | Complete workspace build, launch, and development guidelines |
+| [Raspberry Pi Onboard & Ground Telemetry Stack](raspberry_pi/README.md) | Pixhawk MAVLink control, udev rules, Wi-Fi streaming, PlotJuggler, and camera segmentation |
+| [Raspberry Pi Operating Instructions](raspberry_pi/instruction.md) | Comprehensive step-by-step setup, flight mode, and operational manual |
 | [Nav2 Simulation Guide](docs/nav2_readme.md) | Gazebo Harmonic + Nav2 + SLAM Toolbox simulation walkthrough |
 | [Google Drive — Documents](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) | All related documentation & design artifacts |
 | [Semantic Mapping Demo](https://youtu.be/XxDwwBQxVR0) | YOLOv8 real-time semantic segmentation for robotics (from `ros2_ws/src/quadcopter_perception`) |
