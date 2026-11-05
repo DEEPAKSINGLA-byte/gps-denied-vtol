@@ -34,3 +34,6 @@ ros2_ws/log/
 
 # Camera captures
 raspberry_pi/received_*.jpg
+raspberry_pi/segmented_*.jpg
+raspberry_pi/mask_overlay.jpg
+*.pt

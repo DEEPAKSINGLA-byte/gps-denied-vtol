@@ -284,7 +284,74 @@ python3 camera_streamer.py --target-ip 10.184.3.231 --stream --fps 20
 
 ---
 
-### 6. Unified Drone CLI (`drone_cli.py`)
+### 6. Real-Time Segmentation on Camera Matrix Stream
+
+You can run semantic / instance segmentation models directly on the live image matrices streamed from the drone across the **Redmi 10** network, accelerated by the ground laptop's **NVIDIA RTX 4060 GPU** via CUDA.
+
+```
+ ┌──────────────────────────────────────┐             ┌──────────────────────────────────────────────┐
+ │  Raspberry Pi 4 (10.184.3.36)        │             │  Ground Laptop (10.184.3.231)                │
+ │  • /dev/video0 (USB RGB Camera)      │  Redmi 10   │  • NVIDIA GeForce RTX 4060 Laptop GPU        │
+ │  • camera_streamer.py                │─── Wi-Fi ──▶│  • live_segmentation.py                      │
+ │    - Sends (480, 640, 3) matrix      │    (TCP)    │    - Ingests image matrix                    │
+ │                                      │  Port 5000  │    - YOLOv8-seg / PyTorch inference (CUDA)   │
+ │                                      │             │    - Extracts object masks, bboxes, classes  │
+ └──────────────────────────────────────┘             └──────────────────────────────────────────────┘
+```
+
+#### Step 1: Start the Segmentation Receiver on Your Laptop
+Run the live segmentation processor:
+```bash
+cd ~/gps-denied-vtol/raspberry_pi
+
+# 1. Automated verification on a single incoming frame from Pi
+python3 live_segmentation.py --verify
+
+# 2. Continuous real-time segmentation stream (prints GPU inference ms & FPS)
+python3 live_segmentation.py --stream
+
+# 3. Continuous segmentation with live OpenCV visual display window
+python3 live_segmentation.py --stream --gui
+
+# 4. Save segmented frames to an output folder
+python3 live_segmentation.py --stream --save-dir ./segmentation_output
+```
+
+#### Step 2: Stream Live Frames from the Raspberry Pi
+```bash
+# Send single frame snapshot
+ssh deimos@10.184.3.36 "cd ~/raspberry_pi && python3 camera_streamer.py --target-ip 10.184.3.231 --snapshot"
+
+# Or stream live continuous frames (20 FPS)
+ssh deimos@10.184.3.36 "cd ~/raspberry_pi && python3 camera_streamer.py --target-ip 10.184.3.231 --stream --fps 20"
+```
+
+#### Step 3: Programmatic API for Downstream Autonomy & Navigation
+You can import `SegmentationEngine` in your custom scripts or ROS 2 nodes:
+```python
+import cv2
+from segmentation_pipeline import SegmentationEngine
+
+# Loads on CUDA (RTX 4060) automatically
+engine = SegmentationEngine(model_path="yolov8n-seg.pt")
+
+# Pass any (H, W, 3) uint8 image matrix directly
+frame = cv2.imread("received_image_matrix.jpg")
+results = engine.process_matrix(frame)
+
+print(f"Inference latency: {results['inference_time_ms']} ms")
+print(f"Detected {results['num_objects']} objects with {results['num_masks']} segmentation masks")
+
+# Access binary masks, bounding boxes, and annotated visualization
+annotated_frame = results["annotated_frame"]
+isolated_masks = results["isolated_mask_frame"]
+for mask_info in results["masks"]:
+    print(f"Found {mask_info['class_name']} with {mask_info['pixel_area']} pixels")
+```
+
+---
+
+### 7. Unified Drone CLI (`drone_cli.py`)
 
 A single tool that offers both an **interactive control shell** and convenient single-command flags.
 
