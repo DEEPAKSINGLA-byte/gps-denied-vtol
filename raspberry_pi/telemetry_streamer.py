@@ -115,16 +115,22 @@ class TelemetryStreamer:
         self.running = True
         self.start_time = time.time()
 
+        # Register raw MAVLink forwarder callback (prevents thread contention on serial port)
+        if self.stream_mode in ["both", "mavlink"]:
+            mavlink_target = (self.target_ip, self.mavlink_port)
+            def forward_mav(buf):
+                try:
+                    self.udp_sock.sendto(buf, mavlink_target)
+                    self.packets_sent_mavlink += 1
+                except Exception:
+                    pass
+            self.vehicle.raw_packet_callback = forward_mav
+
         threads = []
         if self.stream_mode in ["both", "json"]:
             t_json = threading.Thread(target=self._json_stream_worker, daemon=True, name="JSONStreamer")
             threads.append(t_json)
             t_json.start()
-
-        if self.stream_mode in ["both", "mavlink"]:
-            t_mav = threading.Thread(target=self._mavlink_stream_worker, daemon=True, name="MAVLinkForwarder")
-            threads.append(t_mav)
-            t_mav.start()
 
         try:
             while self.running:
@@ -185,27 +191,7 @@ class TelemetryStreamer:
                 pass
             time.sleep(self.interval)
 
-    def _mavlink_stream_worker(self):
-        """
-        Forward raw MAVLink packets received from Pixhawk out via UDP.
-        """
-        mavlink_target = (self.target_ip, self.mavlink_port)
-        while self.running:
-            try:
-                # Read from vehicle master
-                if self.vehicle and self.vehicle.master:
-                    msg = self.vehicle.master.recv_msg()
-                    if msg:
-                        buf = msg.get_msgbuf()
-                        if buf:
-                            self.udp_sock.sendto(buf, mavlink_target)
-                            self.packets_sent_mavlink += 1
-                    else:
-                        time.sleep(0.002)
-                else:
-                    time.sleep(0.05)
-            except Exception:
-                time.sleep(0.01)
+
 
 
 def main():

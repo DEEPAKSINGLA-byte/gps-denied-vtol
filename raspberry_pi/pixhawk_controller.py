@@ -134,6 +134,7 @@ class PixhawkVehicle:
         # Background thread
         self._stop_telemetry_event = threading.Event()
         self._telemetry_thread: Optional[threading.Thread] = None
+        self.raw_packet_callback = None
 
         if auto_connect:
             self.connect()
@@ -241,6 +242,7 @@ class PixhawkVehicle:
     def request_data_streams(self, rate_hz: int = 10):
         """
         Request telemetry streams at specified frequency (Hz).
+        Sends to target component 1 (autopilot), 0 (broadcast), and self.target_component.
         """
         if not self.master:
             return
@@ -254,17 +256,19 @@ class PixhawkVehicle:
             mavutil.mavlink.MAV_DATA_STREAM_EXTRA2,  # VFR_HUD
             mavutil.mavlink.MAV_DATA_STREAM_EXTRA3,  # Sensors / AHRS
         ]
-        for s in streams:
-            try:
-                self.master.mav.request_data_stream_send(
-                    self.target_system,
-                    self.target_component,
-                    s,
-                    rate_hz,
-                    1  # start stream
-                )
-            except Exception as e:
-                logger.debug("Failed requesting stream %s: %s", s, e)
+        target_comps = {1, getattr(self, "target_component", 1), 0}
+        for comp in target_comps:
+            for s in streams:
+                try:
+                    self.master.mav.request_data_stream_send(
+                        self.target_system,
+                        comp,
+                        s,
+                        rate_hz,
+                        1  # start stream
+                    )
+                except Exception as e:
+                    logger.debug("Failed requesting stream %s on comp %s: %s", s, comp, e)
 
     def start_telemetry_thread(self):
         """
@@ -292,14 +296,34 @@ class PixhawkVehicle:
     def _telemetry_worker(self):
         """
         Background loop reading incoming MAVLink packets.
+        Periodically re-requests data streams to keep sensors streaming at full rate,
+        and automatically handles USB re-enumeration (/dev/ttyACM*).
         """
+        last_stream_req = time.time()
+        last_msg_time = time.time()
+
         while not self._stop_telemetry_event.is_set():
             if not self.master:
+                # Attempt auto-reconnect if disconnected
+                if time.time() - last_msg_time > 2.0:
+                    detected = self.detect_serial_port()
+                    if detected and detected != self.connection_str:
+                        logger.info("Auto-reconnecting to newly detected port: %s", detected)
+                        self.connection_str = detected
+                        self.connect()
                 time.sleep(0.1)
                 continue
+
             try:
+                # Keep telemetry streams alive every 3.0 seconds
+                now = time.time()
+                if now - last_stream_req > 3.0:
+                    self.request_data_streams(rate_hz=10)
+                    last_stream_req = now
+
                 msg = self.master.recv_msg()
                 if msg is not None:
+                    last_msg_time = now
                     mtype = msg.get_type()
                     with self._telemetry_lock:
                         self._raw_messages[mtype] = msg
@@ -308,8 +332,33 @@ class PixhawkVehicle:
                             self._recent_statustexts.append(text)
                             if len(self._recent_statustexts) > 20:
                                 self._recent_statustexts.pop(0)
+
+                    # Forward raw buffer to callback if registered
+                    if self.raw_packet_callback:
+                        try:
+                            buf = msg.get_msgbuf()
+                            if buf:
+                                self.raw_packet_callback(buf)
+                        except Exception:
+                            pass
                 else:
-                    time.sleep(0.005)
+                    # If no message received for > 4 seconds, check if device vanished
+                    if now - last_msg_time > 4.0:
+                        if not os.path.exists(self.connection_str):
+                            logger.warning("Device %s disappeared! Scanning for new port...", self.connection_str)
+                            detected = self.detect_serial_port()
+                            if detected:
+                                logger.info("Found re-enumerated Pixhawk on %s! Reconnecting...", detected)
+                                self.connection_str = detected
+                                try:
+                                    self.master.close()
+                                except Exception:
+                                    pass
+                                self.master = mavutil.mavlink_connection(self.connection_str, baud=self.baud)
+                                self.master.wait_heartbeat(timeout=3.0)
+                                self.request_data_streams(rate_hz=10)
+                                last_msg_time = time.time()
+                    time.sleep(0.002)
             except Exception as e:
                 logger.debug("Telemetry worker error: %s", e)
                 time.sleep(0.05)
