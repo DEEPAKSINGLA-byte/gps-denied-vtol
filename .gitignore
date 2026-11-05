@@ -31,3 +31,6 @@ ros2_ws/log/
 *.trt
 *.bin
 *.safetensors
+
+# Camera captures
+raspberry_pi/received_*.jpg

@@ -245,7 +245,46 @@ Because the Raspberry Pi forwards the raw MAVLink stream over UDP port `14550`, 
 
 ---
 
-### 5. Unified Drone CLI (`drone_cli.py`)
+### 5. RGB Camera Image Matrix Streaming & Verification
+
+The Raspberry Pi captures live frames from the onboard RGB camera (`/dev/video0`) and transmits the underlying **NumPy image matrix** $(H, W, 3)$ across the **Redmi 10** network to the laptop for computer vision, perception, or inspection.
+
+```
+ ┌──────────────────────────────────────┐             ┌──────────────────────────────────────┐
+ │  Raspberry Pi (10.184.3.36)          │             │  Ground Laptop (10.184.3.231)        │
+ │  • /dev/video0 (USB RGB Camera)      │  Redmi 10   │                                      │
+ │  • OpenCV + NumPy                    │─── Wi-Fi ──▶│  • camera_receiver.py                │
+ │  • camera_streamer.py                │    (TCP)    │    - Reconstructs (H, W, 3) matrix   │
+ │    - Sends raw or encoded matrix     │  Port 5000  │    - Validates pixel integrity       │
+ └──────────────────────────────────────┘             └──────────────────────────────────────┘
+```
+
+#### Step 1: On the Laptop (Start the Receiver)
+Start the receiver to listen on port `5000` and automatically verify the matrix:
+```bash
+# Verify image matrix structure, pixel values, and save snapshot to disk
+python3 camera_receiver.py --verify
+
+# Or receive continuous video stream at 20-30 FPS
+python3 camera_receiver.py --stream
+```
+
+#### Step 2: On the Raspberry Pi (Transmit the Matrix)
+Send the image matrix to the laptop:
+```bash
+# Send a single verified snapshot matrix
+python3 camera_streamer.py --target-ip 10.184.3.231 --snapshot
+
+# Stream raw uncompressed NumPy matrix
+python3 camera_streamer.py --target-ip 10.184.3.231 --mode raw --snapshot
+
+# Continuous live camera stream (20 FPS)
+python3 camera_streamer.py --target-ip 10.184.3.231 --stream --fps 20
+```
+
+---
+
+### 6. Unified Drone CLI (`drone_cli.py`)
 
 A single tool that offers both an **interactive control shell** and convenient single-command flags.
 
