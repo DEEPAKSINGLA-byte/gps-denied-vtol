@@ -1,0 +1,31 @@
+# 98-camera.rules - Persistent udev symlinks for Drone USB Cameras
+# =========================================================================
+# Grants persistent symlinks (/dev/camera and /dev/drone_camera) and full
+# read/write permissions (MODE="0666", GROUP="video") to prevent device
+# node hopping (e.g. /dev/video0 <-> /dev/video1 <-> /dev/video10).
+#
+# Installation on Linux / Raspberry Pi:
+#   sudo cp 98-camera.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# Tested on:
+#   - Arkmicro Technologies USB2.0 PC CAMERA (18ec:3399)
+#   - Logitech C270 / C920 / C930e (046d:*)
+#   - ELP High-Speed / Global Shutter Cameras (32e4:*)
+# =========================================================================
+
+# 1. Arkmicro Technologies USB 2.0 PC CAMERA (Current Drone Sensor)
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="18ec", ATTRS{idProduct}=="3399", ATTR{index}=="0", SYMLINK+="camera", SYMLINK+="drone_camera", SYMLINK+="video-cam", MODE="0666", GROUP="video"
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="18ec", ATTRS{idProduct}=="3399", ATTR{index}=="1", SYMLINK+="camera_meta", MODE="0666", GROUP="video"
+
+# 2. Logitech Webcams & FPV Cams (C270, C920, C922, BRIO)
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="046d", ATTR{index}=="0", SYMLINK+="camera", SYMLINK+="drone_camera", SYMLINK+="video-cam", MODE="0666", GROUP="video"
+
+# 3. ELP Wide-Angle / High-Speed USB Cameras
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="32e4", ATTR{index}=="0", SYMLINK+="camera", SYMLINK+="drone_camera", SYMLINK+="video-cam", MODE="0666", GROUP="video"
+
+# 4. OpenMV Cam H7 / RT
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="abd1", ATTR{index}=="0", SYMLINK+="camera", SYMLINK+="drone_camera", MODE="0666", GROUP="video"
+
+# 5. Generic UVC Video Capture (First capture interface)
+SUBSYSTEM=="video4linux", ENV{ID_USB_INTERFACE_NUM}=="00", ATTR{index}=="0", SYMLINK+="drone_camera_uvc", MODE="0666", GROUP="video"

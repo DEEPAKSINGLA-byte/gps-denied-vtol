@@ -91,13 +91,14 @@ def read_frame(sock: socket.socket) -> Optional[Tuple[dict, np.ndarray, float]]:
     return metadata, frame, latency_ms
 
 
-def verify_image_stream(port: int = 5000, save_path: str = "received_image_matrix.jpg", timeout: float = 15.0) -> bool:
+def verify_image_stream(port: int = 5000, save_path: str = "received_image_matrix.jpg", timeout: float = 15.0, gui: bool = True) -> bool:
     print("=" * 70)
     print(" RGB CAMERA MATRIX VERIFICATION (REDMI 10 NETWORK)")
     print("=" * 70)
     print(f"Listening on:     0.0.0.0:{port} (TCP)")
     print(f"Output File:      {save_path}")
     print(f"Connection Wait:  {timeout:.1f}s")
+    print(f"GUI Display:      {'ENABLED' if gui else 'DISABLED'}")
     print("-" * 70)
 
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -182,14 +183,26 @@ def verify_image_stream(port: int = 5000, save_path: str = "received_image_matri
     else:
         print("\033[91m[FAILED] Image matrix verification checks failed.\033[0m")
     print("=" * 70 + "\n")
+
+    if gui:
+        cv2.namedWindow("Raw Camera Verification", cv2.WINDOW_NORMAL)
+        cv2.imshow("Raw Camera Verification", frame)
+        print("[+] Displaying camera GUI window. Press any key or close to continue...")
+        cv2.waitKey(4000)
+        cv2.destroyAllWindows()
+
     return all_passed
 
 
-def run_stream_receiver(port: int = 5000, save_path: Optional[str] = None):
+def run_stream_receiver(port: int = 5000, save_path: Optional[str] = None, gui: bool = True):
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_sock.bind(("0.0.0.0", port))
     server_sock.listen(1)
+
+    if gui:
+        cv2.namedWindow("Drone Camera Live Stream (No AI)", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Drone Camera Live Stream (No AI)", 800, 600)
 
     print(f"Listening for continuous camera stream on 0.0.0.0:{port}...")
     try:
@@ -218,27 +231,49 @@ def run_stream_receiver(port: int = 5000, save_path: Optional[str] = None):
             if save_path and frame_count % 30 == 0:
                 cv2.imwrite(save_path, frame)
 
+            if gui:
+                hud = frame.copy()
+                cv2.putText(
+                    hud,
+                    f"CAMERA ONLY | FPS: {fps:>4.1f} | Transit: {latency:>4.1f}ms",
+                    (10, 26),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2,
+                    cv2.LINE_AA,
+                )
+                cv2.imshow("Drone Camera Live Stream (No AI)", hud)
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q') or key == 27:
+                    print("\nGUI window closed by user.")
+                    break
+
     except KeyboardInterrupt:
         print("\nReceiver stopped by user.")
     finally:
         server_sock.close()
+        if gui:
+            cv2.destroyAllWindows()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Laptop RGB Camera Matrix Receiver")
+    parser = argparse.ArgumentParser(description="Laptop RGB Camera Matrix Receiver with GUI")
     parser.add_argument("--port", type=int, default=5000, help="TCP port (default: 5000)")
     parser.add_argument("--verify", action="store_true", help="Capture 1 frame, verify schema & image, then exit")
-    parser.add_argument("--stream", action="store_true", help="Receive continuous stream and monitor FPS")
+    parser.add_argument("--stream", action="store_true", default=True, help="Receive continuous stream and monitor FPS (default: True)")
+    parser.add_argument("--no-gui", action="store_true", help="Disable GUI display window")
     parser.add_argument("--save", type=str, default="received_image_matrix.jpg", help="Path to save received frame")
     parser.add_argument("--timeout", type=float, default=15.0, help="Connection timeout in seconds")
 
     args = parser.parse_args()
+    gui_enabled = not args.no_gui
 
-    if args.stream:
-        run_stream_receiver(port=args.port, save_path=args.save)
-    else:
-        ok = verify_image_stream(port=args.port, save_path=args.save, timeout=args.timeout)
+    if args.verify:
+        ok = verify_image_stream(port=args.port, save_path=args.save, timeout=args.timeout, gui=gui_enabled)
         sys.exit(0 if ok else 1)
+    else:
+        run_stream_receiver(port=args.port, save_path=args.save, gui=gui_enabled)
 
 
 if __name__ == "__main__":

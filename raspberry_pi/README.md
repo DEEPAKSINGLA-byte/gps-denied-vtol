@@ -48,6 +48,10 @@ It addresses key real-world drone integration challenges:
 | [`camera_receiver.py`](camera_receiver.py) | Receiver | Receives and verifies camera matrices on the laptop. |
 | [`segmentation_pipeline.py`](segmentation_pipeline.py) | Pipeline | CUDA-accelerated YOLOv8 segmentation engine on NVIDIA RTX 4060 GPU. |
 | [`live_segmentation.py`](live_segmentation.py) | Pipeline | Real-time segmentation receiver extracting object masks, bounding boxes, and overlays. |
+| [`ground_station_gui.py`](ground_station_gui.py) | GCS GUI | Full-featured Ground Station GUI with PFD horizon, vibration oscilloscope, live video, and direct drone controls. |
+| [`launch_ground_station.sh`](launch_ground_station.sh) | Launcher | 1-click launcher starting the unified Ground Control Station. |
+| [`vibration_motor_halt.py`](vibration_motor_halt.py) | Safety Guard | Monitors vibration and clamps motors at 40% while locking out FlySky RC commands. |
+| [`launch_vibration_guard.sh`](launch_vibration_guard.sh) | Launcher | 1-click launcher for the Vibration Guard (supports local or SSH remote execution). |
 | [`instruction.md`](instruction.md) | Docs | **Exhaustive step-by-step operating guide and reference manual.** |
 
 ---

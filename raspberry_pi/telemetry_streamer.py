@@ -62,6 +62,7 @@ class TelemetryStreamer:
         target_ip: str,
         mavlink_port: int = 14550,
         json_port: int = 14551,
+        cmd_port: int = 14552,
         stream_mode: str = "both",
         rate_hz: float = 10.0,
         pixhawk_port: Optional[str] = None,
@@ -70,6 +71,7 @@ class TelemetryStreamer:
         self.target_ip = target_ip
         self.mavlink_port = mavlink_port
         self.json_port = json_port
+        self.cmd_port = cmd_port
         self.stream_mode = stream_mode.lower()
         self.rate_hz = rate_hz
         self.interval = 1.0 / max(rate_hz, 1.0)
@@ -132,6 +134,11 @@ class TelemetryStreamer:
             threads.append(t_json)
             t_json.start()
 
+        # Start interactive ground station command listener (port 14552)
+        t_cmd = threading.Thread(target=self._command_listener_worker, daemon=True, name="CommandListener")
+        threads.append(t_cmd)
+        t_cmd.start()
+
         try:
             while self.running:
                 elapsed = time.time() - self.start_time
@@ -191,6 +198,60 @@ class TelemetryStreamer:
                 pass
             time.sleep(self.interval)
 
+    def _command_listener_worker(self):
+        """
+        Listen for incoming control commands (ARM, DISARM, SET_MODE, EMERGENCY_KILL)
+        from the laptop Ground Station GUI and execute them directly via PixhawkVehicle.
+        """
+        cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        cmd_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            cmd_sock.bind(("0.0.0.0", self.cmd_port))
+            print(f"[+] Ground Station command listener active on UDP 0.0.0.0:{self.cmd_port}")
+        except Exception as e:
+            print(f"[!] Warning: Could not bind command port {self.cmd_port}: {e}")
+            return
+
+        cmd_sock.settimeout(1.0)
+        while self.running:
+            try:
+                data, addr = cmd_sock.recvfrom(4096)
+                if not data or not self.vehicle:
+                    continue
+                cmd_data = json.loads(data.decode("utf-8"))
+                action = str(cmd_data.get("action", "")).lower()
+                resp = {"status": "error", "message": f"Unknown action '{action}'", "action": action}
+
+                if action == "arm":
+                    force = cmd_data.get("force", False)
+                    ok, msg = self.vehicle.arm(force=force)
+                    resp = {"status": "ok" if ok else "fail", "message": msg, "action": action}
+                elif action == "disarm":
+                    force = cmd_data.get("force", False)
+                    ok, msg = self.vehicle.disarm(force=force)
+                    resp = {"status": "ok" if ok else "fail", "message": msg, "action": action}
+                elif action == "emergency_kill":
+                    ok, msg = self.vehicle.emergency_kill()
+                    resp = {"status": "ok" if ok else "fail", "message": msg, "action": action}
+                elif action == "set_mode":
+                    mode = cmd_data.get("mode", "")
+                    ok, msg = self.vehicle.set_mode(mode)
+                    resp = {"status": "ok" if ok else "fail", "message": msg, "action": action}
+                elif action == "set_param":
+                    name = cmd_data.get("name", "")
+                    val = cmd_data.get("value", 0)
+                    ok, msg = self.vehicle.set_parameter(name, val)
+                    resp = {"status": "ok" if ok else "fail", "message": msg, "action": action}
+                elif action == "ping":
+                    resp = {"status": "ok", "message": "pong", "time": time.time(), "action": action}
+
+                cmd_sock.sendto(json.dumps(resp).encode("utf-8"), addr)
+            except socket.timeout:
+                continue
+            except Exception as e:
+                pass
+        cmd_sock.close()
+
 
 
 
@@ -205,6 +266,7 @@ def main():
     )
     parser.add_argument("--mavlink-port", type=int, default=14550, help="Target MAVLink UDP port (default: 14550)")
     parser.add_argument("--json-port", type=int, default=14551, help="Target JSON UDP port (default: 14551)")
+    parser.add_argument("--cmd-port", type=int, default=14552, help="Command listen UDP port (default: 14552)")
     parser.add_argument(
         "--mode",
         type=str,
@@ -222,6 +284,7 @@ def main():
         target_ip=args.target_ip,
         mavlink_port=args.mavlink_port,
         json_port=args.json_port,
+        cmd_port=args.cmd_port,
         stream_mode=args.mode,
         rate_hz=args.rate,
         pixhawk_port=args.port,

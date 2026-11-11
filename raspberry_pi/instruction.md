@@ -50,28 +50,34 @@ The suite provides programmatic and interactive control to:
 
 ## Installation & Setup on Raspberry Pi
 
-### 1. Install Persistent udev Rule (`/dev/pixhawk`)
-When a drone vibrates, moves, or additional USB devices (like cameras) are plugged in, Linux can dynamically re-enumerate the Pixhawk from `/dev/ttyACM0` to `/dev/ttyACM1`. 
+### 1. Install Persistent udev Rules (`/dev/pixhawk` and `/dev/camera`)
+When a drone vibrates, moves, or USB devices are hotplugged, Linux can dynamically re-enumerate ports:
+* Pixhawk shifts between `/dev/ttyACM0` and `/dev/ttyACM1`.
+* USB cameras shift between `/dev/video0`, `/dev/video1`, and `/dev/video10` (creating split nodes for video and metadata).
 
-To prevent broken connections, a dedicated udev rule creates a persistent `/dev/pixhawk` symlink and sets permissions (`0666`):
+To prevent broken connections, persistent udev rules create static symlinks with full read/write permissions (`0666`):
+1. **Pixhawk Rule ([`99-pixhawk.rules`](file:///home/deepak/gps-denied-vtol/raspberry_pi/99-pixhawk.rules)):** Maps Pixhawk (VID: `1209`, PID: `5741`, as well as PX4, 3DR, Cube, and STM32) to `/dev/pixhawk` (`MODE="0666", GROUP="dialout"`).
+2. **Camera Rule ([`98-camera.rules`](file:///home/deepak/gps-denied-vtol/raspberry_pi/98-camera.rules)):** Maps the Arkmicro USB camera capture stream (`index 0`) to `/dev/camera` and `/dev/drone_camera` (`MODE="0666", GROUP="video"`).
 
 ```bash
-# Run the automated installer (on Raspberry Pi or Laptop)
+# Run the automated installer (installs both rules and reloads udev)
 sudo ./install_udev_rules.sh
 ```
 Or manually:
 ```bash
-sudo cp 99-pixhawk.rules /etc/udev/rules.d/
+sudo cp 98-camera.rules 99-pixhawk.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-**Verify the persistent link:**
+**Verify the persistent links:**
 ```bash
-ls -la /dev/pixhawk
-# Output: /dev/pixhawk -> ttyACM1 (or ttyACM0)
+ls -la /dev/pixhawk /dev/camera
+# Expected output:
+#   /dev/pixhawk -> ttyACM0 (or ttyACM1)
+#   /dev/camera  -> video0
 ```
-All scripts prioritize `/dev/pixhawk` automatically before scanning fallback ports.
+All companion scripts prioritize `/dev/pixhawk` and `/dev/camera` automatically.
 
 ### 2. User Permissions
 Ensure the current Linux user belongs to the `dialout` group to access serial ports without `sudo`:
@@ -470,6 +476,89 @@ python3 drone_cli.py --telemetry
 
 ---
 
+### 9. Vibration Abnormality Guard & 40% Motor Halt (`vibration_motor_halt.py`)
+
+A critical onboard flight safety daemon designed to protect the vehicle against mechanical failure, loose propellers, severe motor unbalance, or structural frame resonance.
+
+```
+ ┌────────────────────────────────────────────────────────┐
+ │           Raspberry Pi / Laptop Companion              │
+ │                                                        │
+ │   • vibration_motor_halt.py                            │
+ │     - Monitors MAVLink VIBRATION (X, Y, Z, Mag) at 20Hz│
+ │     - Tracks Accelerometer Clipping Bursts             │
+ └──────────────────────────┬─────────────────────────────┘
+                            │ MAVLink (Serial /dev/pixhawk)
+                            │
+              Vibration > 35 m/s² Detected!
+                            │
+ ┌──────────────────────────▼─────────────────────────────┐
+ │       AUTOMATIC SAFETY INTERVENTION (20 Hz Loop)       │
+ │                                                        │
+ │ 1. CLAMP MOTORS TO 40.0% THROTTLE:                     │
+ │    - Dynamically queries RC3_MIN (999µs) & RC3_MAX     │
+ │    - Sets Throttle PWM = 1400 µs (40.0%)               │
+ │                                                        │
+ │ 2. OVERRIDE & LOCK OUT FLYSKY RC TRANSMITTER:          │
+ │    - Streams RC_CHANNELS_OVERRIDE packets at 20 Hz     │
+ │    - Forces Roll = 1500 µs (Level), Pitch = 1500 µs    │
+ │    - ArduPilot prioritizes companion override          │
+ │    - ALL FLYSKY TRANSMITTER STICK COMMANDS ARE BLOCKED │
+ └────────────────────────────────────────────────────────┘
+```
+
+#### Why FlySky Lockout is Required:
+When high vibration occurs, ArduPilot's Extended Kalman Filter (EKF) experiences severe accelerometer divergence, causing erroneous altitude and velocity estimation. If a pilot attempts to compensate using the physical FlySky transmitter sticks, rapid manual throttle spikes or aggressive roll/pitch corrections can lead to a violent high-speed crash or structural disintegration. By clamping the throttle to 40% (controlled slow descent) and locking roll/pitch to neutral (level flight), the drone remains upright and prevents a flyaway.
+
+#### Launch Instructions:
+
+##### Option A: Launch directly on the Raspberry Pi
+```bash
+# Run with default 35 m/s² threshold and 40% throttle clamp
+/home/deimos/raspberry_pi/vibration_motor_halt.py
+
+# Custom threshold and throttle settings:
+python3 /home/deimos/raspberry_pi/vibration_motor_halt.py --threshold 30.0 --throttle-pct 40.0
+
+# Automatically engage ALT_HOLD mode on trigger:
+python3 /home/deimos/raspberry_pi/vibration_motor_halt.py --auto-alt-hold
+```
+
+##### Option B: 1-Click Launch from Laptop (Over Wi-Fi)
+```bash
+cd ~/gps-denied-vtol/raspberry_pi
+./launch_vibration_guard.sh
+```
+*(If Pixhawk is plugged into the Pi, the launcher automatically connects over SSH).*
+
+#### Interactive Dashboard & Safety Hotkeys:
+The script provides a live real-time ANSI terminal dashboard displaying sensor bars, clipping counts, and channel states:
+* **`[t]` (Test Trigger):** Instantly forces the 40% motor halt and FlySky lockout (ideal for bench testing with propellers removed without having to shake the drone).
+* **`[r]` (Release Override):** Instantly releases companion override and restores full manual stick control back to the FlySky transmitter.
+* **`[d]` (Emergency Disarm):** Sends immediate force-disarm command (`MAV_CMD_COMPONENT_ARM_DISARM`).
+* **`[q]` (Quit):** Safely exits the dashboard and releases all overrides cleanly.
+
+---
+
+### 10. Unified Ground Control Station GUI (`ground_station_gui.py`)
+
+A full-featured Qt-based Ground Station providing a real-time Primary Flight Display (PFD) artificial horizon, vibration oscilloscope, live video with YOLOv8-seg overlay, and flight control buttons.
+
+#### Launching the Ground Station:
+```bash
+cd ~/gps-denied-vtol/raspberry_pi
+./launch_ground_station.sh
+```
+
+#### Key Capabilities:
+* **Primary Flight Display (PFD):** Circular artificial horizon displaying roll and pitch ladder angles, heading compass tape, and airspeed/climb indicators.
+* **Live Camera Stream with CUDA Segmentation:** Streams frames from `/dev/camera` on port 5000 and runs YOLOv8-seg on the laptop's RTX 4060 GPU with an interactive toggle switch.
+* **Vibration Oscilloscope:** Live waveform plotting X, Y, and Z vibration levels with safe (<30 m/s²) and danger (>45 m/s²) thresholds.
+* **Direct Flight Control Actions:** Arm (Normal & Force), Disarm, Altitude Hold, Position Hold, Land, Stabilize, and Return-to-Launch.
+* **Watchdog Recovery:** Detects camera feed stalls after 1.2s and displays auto-reconnecting alerts.
+
+---
+
 ## Programmatic Python API (`pixhawk_controller.py`)
 
 You can import `PixhawkVehicle` directly in your own autonomous scripts or ROS 2 navigation nodes:
@@ -594,3 +683,5 @@ ssh deimos@10.184.3.36 "ps aux | grep -E 'telemetry|camera' | grep -v grep"
 | `Arming DENIED by Pixhawk` | Pre-arm safety check failed (GPS lock, calibration, or safety switch) | Use `--arm --force` to bypass check, or press the physical GPS safety switch button (if equipped) |
 | `Mode change failed` | Mode not supported or prerequisites unmet (e.g. POSHOLD without optical flow/GPS) | Run `python3 set_mode.py --list` to check firmware-supported modes; switch to `ALT_HOLD` or `STABILIZE` instead |
 | `No attitude/telemetry packets received` | Pixhawk stream rate is disabled or set to 0 | `PixhawkVehicle` automatically sends `request_data_stream_send`. Verify baud rate is at least 115200 |
+| `FlySky stick inputs ignored / throttle stuck at 40%` | Vibration Guard has detected high vibration (>35 m/s²) and locked out FlySky RC sticks | Mechanical abnormality detected. Press `[r]` in `vibration_motor_halt.py` dashboard to release override, or `[d]` to emergency disarm |
+| `Camera device missing after disconnect/reconnect` | USB re-enumeration protocol error (`error -71`) or multiple video nodes | Run `sudo ./install_udev_rules.sh` to ensure `/dev/camera` binds to stream index 0; re-plug camera firmly |

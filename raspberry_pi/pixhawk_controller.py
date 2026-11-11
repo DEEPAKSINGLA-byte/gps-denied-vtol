@@ -686,9 +686,12 @@ class PixhawkVehicle:
 
         # 3. Barometer & Pressure
         if press:
+            p_abs = press.press_abs
+            std_alt = round(44330.0 * (1.0 - (p_abs / 1013.25) ** 0.190295), 2) if p_abs > 0 else 0.0
             telemetry["barometer"] = {
-                "pressure_hpa": round(press.press_abs, 2),
+                "pressure_hpa": round(p_abs, 2),
                 "temperature_c": round(press.temperature / 100.0, 2),
+                "baro_alt_m": std_alt,
             }
         else:
             telemetry["barometer"] = None
@@ -784,7 +787,9 @@ class PixhawkVehicle:
                 "vibe_x": round(vibe.vibration_x, 2),
                 "vibe_y": round(vibe.vibration_y, 2),
                 "vibe_z": round(vibe.vibration_z, 2),
-                "clipping_0": vibe.clipping_0,
+                "clipping_0": getattr(vibe, "clipping_0", 0),
+                "clipping_1": getattr(vibe, "clipping_1", 0),
+                "clipping_2": getattr(vibe, "clipping_2", 0),
             }
         else:
             telemetry["vibration"] = None
@@ -809,6 +814,10 @@ class PixhawkVehicle:
             }
         else:
             telemetry["rc_channels"] = None
+
+        # 14. Status Messages / Alerts
+        with self._telemetry_lock:
+            telemetry["statustexts"] = list(self._recent_statustexts)
 
         return telemetry
 
