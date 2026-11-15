@@ -28,7 +28,7 @@ class LidarUDPReceiverNode(Node):
         self.sock.setblocking(False)
 
         self.get_logger().info(f"Listening for LiDAR UDP packets on port {self.listen_port} -> /{self.scan_topic}")
-        self.timer = self.create_wall_timer(0.01, self.poll_udp)
+        self.timer = self.create_timer(0.01, self.poll_udp)
 
     def poll_udp(self):
         while True:

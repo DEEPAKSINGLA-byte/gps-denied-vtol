@@ -1,0 +1,19 @@
+ydlidar_node:
+  ros__parameters:
+    port: "/dev/ttyUSB0"
+    baudrate: 115200
+    frame_id: "laser_frame"
+    scan_topic: "scan"
+    reversion: false
+    inverted: false
+    auto_reconnect: true
+    lidar_type: 1            # 1: TYPE_TRIANGLE
+    device_type: 0           # 0: SERIAL
+    sample_rate: 5           # 5K
+    scan_frequency: 7.0      # 7 Hz
+    single_channel: false
+    intensity: true
+    range_min: 0.12
+    range_max: 16.0
+    angle_min: -3.1415926
+    angle_max: 3.1415926

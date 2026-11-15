@@ -1,0 +1,22 @@
+# 99-pixhawk.rules - Persistent udev symlinks for Pixhawk Flight Controllers
+# =========================================================================
+# Grants persistent symlink /dev/pixhawk and full read/write permissions
+# to the dialout group, preventing device node shifting (ttyACM0 <-> ttyACM1).
+#
+# Installation on Linux / Raspberry Pi:
+#   sudo cp 99-pixhawk.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# Generic Pixhawk 1 / ArduPilot
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="5741", SYMLINK+="pixhawk", MODE="0666", GROUP="dialout"
+
+# PX4 / 3D Robotics FMU (Bootloader & Application)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="26ac", ATTRS{idProduct}=="0011", SYMLINK+="pixhawk", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="26ac", ATTRS{idProduct}=="0012", SYMLINK+="pixhawk", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="26ac", ATTRS{idProduct}=="0032", SYMLINK+="pixhawk", MODE="0666", GROUP="dialout"
+
+# Holybro / Cube / ProfiCNC Autopilots
+SUBSYSTEM=="tty", ATTRS{idVendor}=="3162", SYMLINK+="pixhawk", MODE="0666", GROUP="dialout"
+
+# Generic STM32 Virtual COM Port (FMU)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", SYMLINK+="pixhawk", MODE="0666", GROUP="dialout"
