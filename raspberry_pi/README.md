@@ -1,7 +1,7 @@
 <h1 align="center">Raspberry Pi Onboard Compute & Ground Telemetry Stack</h1>
 
 <p align="center">
-  <em>Onboard flight control, MAVLink telemetry streaming, persistent udev rules, camera perception, and real-time PlotJuggler visualization for GPS-denied UAVs</em>
+  <em>Onboard flight control, MAVLink telemetry, YDLIDAR + camera streaming, ROS 2 / Nav2 bridging, persistent udev rules, and RViz / PlotJuggler visualization for GPS-denied UAVs</em>
 </p>
 
 <p align="center">
@@ -24,6 +24,9 @@ It addresses key real-world drone integration challenges:
 * **Flight Control & Safety:** Full programmatic and CLI control to arm/disarm (with pre-arm bypass `--force` for GPS-denied bench testing) and switch modes (`ALT_HOLD`, `POSHOLD`, `LAND`, `STABILIZE`, `GUIDED`).
 * **Dual Telemetry Streaming:** Transmits high-rate parsed JSON telemetry (UDP 14551) alongside standard MAVLink packets (UDP 14550) for QGroundControl/Mission Planner.
 * **Live Plotting in PlotJuggler:** Real-time multi-window timeseries plotting of Roll, Pitch, Yaw, Accelerometer, Gyro, Barometer, and Battery with a pre-configured XML layout.
+* **LiDAR Streaming:** YDLIDAR scans are streamed from the Pi as JSON over UDP (14552) and republished on the laptop as `sensor_msgs/LaserScan` on `/scan` for Nav2 costmaps.
+* **ROS 2 / Nav2 Bridge:** Telemetry becomes `/odom` + TF, camera becomes `/camera/image_raw`, and Nav2 `/cmd_vel` is sent back to the Pixhawk through a Pi-side velocity listener (UDP 14553).
+* **Validation in RViz:** Latency, rate, TF-age and costmap-vs-lidar metrics are published under `/metrics/*` (see [Ground-side ROS 2 stack](#ground-side-ros-2-stack-rviz--nav2)).
 * **Perception & Segmentation:** Live RGB camera matrix streaming (`/dev/video0`) with real-time semantic segmentation on the laptop's NVIDIA RTX 4060 GPU via CUDA.
 
 ---
@@ -39,6 +42,7 @@ It addresses key real-world drone integration challenges:
 | [`set_mode.py`](set_mode.py) | Utility | Flight mode changer (`alt_hold`, `poshold`, `land`, `stabilize`, `guided`, `rtl`). |
 | [`sensor_telemetry.py`](sensor_telemetry.py) | Utility | Real-time terminal dashboard, formatted snapshots, and CSV logging on the Pi. |
 | [`drone_cli.py`](drone_cli.py) | CLI | Unified interactive console (`drone [ARMED | ALT_HOLD] >`) and batch CLI. |
+| [`start_streams.py`](start_streams.py) | Launcher | **One command on the Pi** (`python3 start_streams.py <laptop_ip>`): runs + supervises telemetry, lidar and camera streamers, optional Nav2 velocity listener. |
 | [`telemetry_streamer.py`](telemetry_streamer.py) | Service | Transmits live telemetry (10 Hz JSON + raw MAVLink) over Wi-Fi to laptop. |
 | [`laptop_telemetry_receiver.py`](laptop_telemetry_receiver.py) | Utility | Ground receiver verifying packet integrity, latency, and sensor telemetry. |
 | [`plotjuggler_bridge.py`](plotjuggler_bridge.py) | Service | Ground bridge forwarding telemetry to PlotJuggler UDP (port 9870) and ROS 2 topics. |
@@ -48,10 +52,16 @@ It addresses key real-world drone integration challenges:
 | [`camera_receiver.py`](camera_receiver.py) | Receiver | Receives and verifies camera matrices on the laptop. |
 | [`segmentation_pipeline.py`](segmentation_pipeline.py) | Pipeline | CUDA-accelerated YOLOv8 segmentation engine on NVIDIA RTX 4060 GPU. |
 | [`live_segmentation.py`](live_segmentation.py) | Pipeline | Real-time segmentation receiver extracting object masks, bounding boxes, and overlays. |
-| [`ground_station_gui.py`](ground_station_gui.py) | GCS GUI | Full-featured Ground Station GUI with PFD horizon, vibration oscilloscope, live video, and direct drone controls. |
-| [`launch_ground_station.sh`](launch_ground_station.sh) | Launcher | 1-click launcher starting the unified Ground Control Station. |
 | [`vibration_motor_halt.py`](vibration_motor_halt.py) | Safety Guard | Monitors vibration and clamps motors at 40% while locking out FlySky RC commands. |
 | [`launch_vibration_guard.sh`](launch_vibration_guard.sh) | Launcher | 1-click launcher for the Vibration Guard (supports local or SSH remote execution). |
+| [`98-camera.rules`](98-camera.rules) | Config | Persistent udev rule creating the `/dev/camera` symlink for the RGB camera. |
+| [`test_connection.py`](test_connection.py) | Utility | Quick Pixhawk connectivity / heartbeat check. |
+| [`lidar_udp_streamer.py`](lidar_udp_streamer.py) | Streamer | **Pi:** reads the YDLIDAR serial stream and sends one JSON packet per revolution (`timestamp`, 360 `ranges`, `intensities`) to UDP 14552. |
+| [`lidar_ros2_receiver.py`](lidar_ros2_receiver.py) | Receiver | **Laptop:** UDP 14552 -> `sensor_msgs/LaserScan` on `/scan` (`laser_frame`). Standalone version of the `gps_denied_bridge` node. |
+| [`camera_ros2_receiver.py`](camera_ros2_receiver.py) | Receiver | **Laptop:** TCP 5000 camera stream -> `sensor_msgs/Image` on `/camera/image_raw` for RViz. Standalone version of the `gps_denied_bridge` node. |
+| [`mavlink_cmd_listener.py`](mavlink_cmd_listener.py) | Service | **Pi:** listens on UDP 14553 for Nav2 velocity setpoints (`{"action":"velocity","vx",...}`) and forwards them to the Pixhawk in GUIDED mode. |
+| [`ros2_ydlidar/`](ros2_ydlidar) | ROS 2 pkg | On-board YDLIDAR G2 driver package (C++ / Python nodes, launch + params). |
+| [`nav2_ws/config/costmap_params.yaml`](nav2_ws/config/costmap_params.yaml) | Config | Standalone costmap/DWB parameters (odom-frame rolling window, `/scan` source). |
 | [`instruction.md`](instruction.md) | Docs | **Exhaustive step-by-step operating guide and reference manual.** |
 
 ---
@@ -94,14 +104,69 @@ On the Raspberry Pi:
 python3 camera_streamer.py --target-ip 10.184.3.231 --stream --fps 20
 ```
 
-### 5. Stopping Ongoing Processes
+### 5. One Command: Stream Everything from the Pi
+On the Raspberry Pi (e.g. after `ssh deimos@10.184.3.36`):
+```bash
+python3 start_streams.py 10.184.3.231          # <- laptop IP; omit it to use the SSH client IP
+```
+This starts and supervises (auto-restart with back-off) telemetry (UDP 14551/14550, commands 14552), the YDLIDAR stream (UDP 14552) and the camera (TCP 5000). Ctrl-C stops all of them.
+
+Options: `--no-lidar --no-camera --no-telemetry`, `--lidar-port /dev/ttyUSB0`, `--camera-device /dev/camera`, `--fps 20 --quality 70`, `--rate 10`, `--pixhawk-port`.
+
+Add `--nav-cmds` to also accept Nav2 velocity commands (UDP 14553). It runs inside the telemetry process and shares its Pixhawk connection, so there is no serial-port conflict. **Caution:** on the first velocity command it switches to GUIDED and force-arms; test with props off.
+
+Start the laptop side first (the camera receiver listens on TCP 5000; the Pi reconnects automatically):
+```bash
+ros2 launch x500_navigation navigation_real.launch.py pi_ip:=10.184.3.36
+```
+The individual scripts (`telemetry_streamer.py`, `lidar_udp_streamer.py`, `camera_streamer.py`, `mavlink_cmd_listener.py`) can still be run on their own.
+
+### 6. Stopping Ongoing Processes
 ```bash
 # On Laptop
-pkill -f plotjuggler_bridge.py; pkill -f plotjuggler; pkill -f camera_receiver.py
+pkill -f plotjuggler_bridge.py; pkill -f plotjuggler; pkill -f camera_receiver.py; pkill -f rviz2
 
 # On Raspberry Pi
-ssh deimos@10.184.3.36 "pkill -f telemetry_streamer.py; pkill -f camera_streamer.py"
+ssh deimos@10.184.3.36 "pkill -f start_streams.py; pkill -f telemetry_streamer.py; pkill -f camera_streamer.py; pkill -f lidar_udp_streamer.py"
 ```
+
+---
+
+## Ground-side ROS 2 stack (RViz + Nav2)
+
+Data flow:
+
+| Stream | Pi program | Transport | Laptop node (`gps_denied_bridge`) | ROS output |
+| :--- | :--- | :--- | :--- | :--- |
+| Telemetry | `telemetry_streamer.py` | UDP 14551 (JSON) | `mavlink_to_ros2_bridge` | `/odom`, TF `odom->base_link` |
+| LiDAR | `lidar_udp_streamer.py` | UDP 14552 (JSON) | `lidar_udp_receiver` | `/scan` |
+| Camera | `camera_streamer.py` | TCP 5000 | `camera_tcp_receiver` | `/camera/image_raw` |
+| Commands | `mavlink_cmd_listener.py` | UDP 14553 (JSON) | `mavlink_cmd_bridge` | subscribes `/cmd_vel` |
+
+Launch everything (Nav2, bridges, RViz, metrics) from `ros2_ws`:
+```bash
+cd ../ros2_ws && colcon build --packages-select gps_denied_bridge x500_navigation && source install/setup.bash
+ros2 launch x500_navigation navigation_real.launch.py pi_ip:=10.184.3.36
+# RViz + metrics only:  ros2 launch x500_navigation visualization.launch.py
+# options: rviz:=false  metrics:=false  camera:=false
+```
+
+RViz uses `ros2_ws/src/x500_navigation/rviz/gps_denied_real.rviz` and shows the scan, camera, TF, local/global costmaps, plans, odometry trail, range rings, nearest obstacle and a status box.
+
+**Validation metrics** (`std_msgs/Float32`, plottable in PlotJuggler / `rqt_plot`; summary on `/diagnostics`):
+
+| Topic | Meaning |
+| :--- | :--- |
+| `/metrics/{lidar,telemetry,camera}/latency_ms` | Pi -> laptop one-way latency from the Pi's `timestamp`. Needs synced clocks (chrony/NTP on both) or the `clock_offset_s` parameter. |
+| `/metrics/*/latency_excess_ms` | Latency minus its 10 s minimum: Wi-Fi jitter, independent of clock offset. |
+| `/metrics/{lidar,telemetry,camera,odom}/rate_hz` | Stream rates (decay to 0 when a stream stalls). |
+| `/metrics/camera/{decode_ms,bandwidth_mbps}` | JPEG decode cost and link load. |
+| `/metrics/lidar/{nearest_obstacle_m,valid_ratio,tf_fail_ratio}` | Scan quality; `tf_fail_ratio` = scans Nav2 could not transform. |
+| `/metrics/tf/odom_base_age_ms` | Staleness of `odom -> base_link`. |
+| `/metrics/costmap/local/scan_agreement` | Fraction of lidar hits on lethal costmap cells (~1 = costmap matches the lidar). |
+| `/metrics/odom/{speed_mps,distance_from_start_m,path_length_m}` | Odometry / drift tracking. |
+
+> The camera and lidar mount offsets in `navigation_real.launch.py` (`base_link -> laser_frame / camera_frame`) are placeholders; set them to the real mounting.
 
 ---
 

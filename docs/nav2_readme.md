@@ -68,3 +68,34 @@ source /opt/ros/humble/setup.bash
 rviz2
 ```
 *Note: Make sure your RViz configuration is subscribed to the `/map` and `/scan` topics.*
+
+## RViz validation dashboard & metrics
+
+```bash
+cd ros2_ws && colcon build --packages-select gps_denied_bridge x500_navigation && source install/setup.bash
+ros2 launch x500_navigation navigation_real.launch.py pi_ip:=<PI_IP>      # everything, incl. RViz
+ros2 launch x500_navigation visualization.launch.py                        # RViz + metrics only
+# options: rviz:=false  metrics:=false  camera:=false
+```
+
+RViz (`x500_navigation/rviz/gps_denied_real.rviz`, fixed frame `odom`, view follows `base_link`):
+YDLIDAR scan, RGB camera, TF tree, local/global costmaps, global/local plan, dead-reckoned
+odometry trail, and a `/metrics/overlay` layer (range rings, nearest-obstacle line, status text).
+Saved views: *Chase 3D*, *Global overview*.
+
+Metrics (`gps_denied_bridge/metrics_monitor`) — all `std_msgs/Float32`, plot with PlotJuggler/`rqt_plot`:
+
+| Topic | Meaning |
+|---|---|
+| `/metrics/{lidar,telemetry,camera}/latency_ms` | Pi->laptop one-way latency (needs chrony/NTP on both, or set `clock_offset_s`) |
+| `/metrics/*/latency_excess_ms` | latency minus 10 s window minimum: network jitter, independent of clock offset |
+| `/metrics/*/rate_hz`, `/metrics/lidar/jitter_ms` | stream rate / inter-arrival jitter |
+| `/metrics/camera/{decode_ms,bandwidth_mbps}` | decode cost and link load |
+| `/metrics/lidar/{nearest_obstacle_m,valid_ratio,tf_fail_ratio}` | scan quality; `tf_fail_ratio` = scans Nav2 could not transform |
+| `/metrics/tf/odom_base_age_ms` | staleness of odom->base_link |
+| `/metrics/costmap/local/scan_agreement` | fraction of lidar hits landing on lethal costmap cells (~1 = costmap matches the lidar) |
+| `/metrics/costmap/{local,global}/{rate_hz,lethal_cells}` | costmap update rate / occupancy |
+| `/metrics/odom/{speed_mps,distance_from_start_m,path_length_m}` | odometry/drift tracking |
+| `/metrics/nav/{cmd_vel_rate_hz,cmd_speed_mps,plan_length_m}` | planner/controller output |
+
+`/diagnostics` carries an OK/WARN/FAIL summary per subsystem (`rqt_robot_monitor`).

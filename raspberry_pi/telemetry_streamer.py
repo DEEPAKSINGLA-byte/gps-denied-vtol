@@ -37,6 +37,11 @@ def get_default_gateway_or_client_ip() -> Optional[str]:
     """
     Attempt to discover the client IP or laptop IP automatically.
     """
+    # Explicit override
+    env_ip = os.environ.get("GPS_DENIED_LAPTOP_IP")
+    if env_ip:
+        return env_ip
+
     # Check SSH client environment variable
     ssh_client = os.environ.get("SSH_CLIENT")
     if ssh_client:
@@ -67,6 +72,7 @@ class TelemetryStreamer:
         rate_hz: float = 10.0,
         pixhawk_port: Optional[str] = None,
         pixhawk_baud: int = 115200,
+        velocity_port: int = 0,
     ):
         self.target_ip = target_ip
         self.mavlink_port = mavlink_port
@@ -77,6 +83,8 @@ class TelemetryStreamer:
         self.interval = 1.0 / max(rate_hz, 1.0)
         self.pixhawk_port = pixhawk_port
         self.pixhawk_baud = pixhawk_baud
+        self.velocity_port = velocity_port  # >0 enables Nav2 velocity listener (shares this vehicle)
+        self.nav_listener = None
 
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.running = False
@@ -139,6 +147,13 @@ class TelemetryStreamer:
         threads.append(t_cmd)
         t_cmd.start()
 
+        if self.velocity_port > 0:
+            from mavlink_cmd_listener import MavlinkCmdListener
+            self.nav_listener = MavlinkCmdListener(
+                self.pixhawk_port, self.pixhawk_baud, self.velocity_port, vehicle=self.vehicle)
+            threading.Thread(target=self.nav_listener.run, daemon=True, name="NavCmdListener").start()
+            print(f"[+] Nav2 velocity listener active on UDP 0.0.0.0:{self.velocity_port} (shared Pixhawk link)")
+
         try:
             while self.running:
                 elapsed = time.time() - self.start_time
@@ -174,6 +189,8 @@ class TelemetryStreamer:
 
     def stop(self):
         self.running = False
+        if self.nav_listener:
+            self.nav_listener.stop()
         if self.vehicle:
             self.vehicle.disconnect()
         if self.udp_sock:
@@ -274,6 +291,8 @@ def main():
         default="both",
         help="Streaming mode: 'both', 'json', or 'mavlink' (default: both)"
     )
+    parser.add_argument("--velocity-port", type=int, default=0,
+                        help="Enable Nav2 velocity listener on this UDP port (e.g. 14553; 0 = off). Arms + GUIDED on first command!")
     parser.add_argument("--rate", type=float, default=10.0, help="JSON telemetry rate in Hz (default: 10.0)")
     parser.add_argument("--port", type=str, default=None, help="Pixhawk serial port (default: auto-detect)")
     parser.add_argument("--baud", type=int, default=115200, help="Pixhawk serial baud (default: 115200)")
@@ -289,6 +308,7 @@ def main():
         rate_hz=args.rate,
         pixhawk_port=args.port,
         pixhawk_baud=args.baud,
+        velocity_port=args.velocity_port,
     )
     streamer.start()
 

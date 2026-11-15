@@ -7,7 +7,7 @@ Pi companion computer and publishes it as standard ROS 2 topics for Nav2:
 
   * nav_msgs/Odometry on /odom
     - position.x/y: integrated from optical flow XY velocity (dead-reckoning)
-    - position.z:   from barometer / rangefinder altitude
+    - position:     ENU (x=East, y=North, z=Up); NED/FRD inputs are converted here
     - orientation:  from attitude roll/pitch/yaw -> quaternion
     - twist.linear: optical flow vx/vy + baro/rangefinder vertical rate
     - twist.angular: from gyro (deg/s -> rad/s)
@@ -37,7 +37,10 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion, Vector3Stamped, TransformStamped
+from std_msgs.msg import Float32
 from tf2_ros import TransformBroadcaster
+
+from gps_denied_bridge.metrics_utils import LatencyTracker
 
 
 def quaternion_from_euler(roll: float, pitch: float, yaw: float) -> Quaternion:
@@ -57,6 +60,21 @@ def quaternion_from_euler(roll: float, pitch: float, yaw: float) -> Quaternion:
     return q
 
 
+def wrap_pi(a: float) -> float:
+    return math.atan2(math.sin(a), math.cos(a))
+
+
+def ned_to_enu_yaw(yaw_ned: float) -> float:
+    """ArduPilot yaw (clockwise from North) -> ROS yaw (counter-clockwise from East)."""
+    return wrap_pi(math.pi / 2.0 - yaw_ned)
+
+
+# Frame conventions (ArduPilot/MAVLink -> ROS REP-103):
+#   world : NED (x=North, y=East, z=Down)        -> ENU (x=East, y=North, z=Up)
+#   body  : FRD (x=Forward, y=Right, z=Down)     -> FLU (x=Forward, y=Left, z=Up)
+#   Euler : roll same; pitch_ros = -pitch_ned (nose-up is +ned, nose-down is +ros);
+#           yaw_ros = pi/2 - yaw_ned (CW from N -> CCW from E)
+#   body vectors (velocity, gyro): (x, y, z)_FLU = (x, -y, -z)_FRD
 class MavlinkToRos2Bridge(Node):
     def __init__(self):
         super().__init__('mavlink_to_ros2_bridge')
@@ -67,7 +85,8 @@ class MavlinkToRos2Bridge(Node):
         self.declare_parameter('base_frame', 'base_link')
         self.declare_parameter('publish_rate_hz', 10.0)
         self.declare_parameter('optical_flow_scale', 1.0)
-        self.declare_parameter('z_source', 'rangefinder')  # rangefinder | barometer
+        self.declare_parameter('z_source', 'auto')  # auto | rangefinder | flow | ekf | barometer
+        self.declare_parameter('min_flow_quality', 20)  # ignore flow below this (0-255)
         self.declare_parameter('home_alt_m', 0.0)  # baro altitude at takeoff (m, above sea level)
 
         self.listen_port = int(self.get_parameter('listen_port').value)
@@ -76,6 +95,7 @@ class MavlinkToRos2Bridge(Node):
         self.publish_rate = float(self.get_parameter('publish_rate_hz').value)
         self.of_scale = float(self.get_parameter('optical_flow_scale').value)
         self.z_source = str(self.get_parameter('z_source').value)
+        self.min_flow_q = int(self.get_parameter('min_flow_quality').value)
         self.home_alt_m = float(self.get_parameter('home_alt_m').value)
 
         # ---------------- State ----------------
@@ -104,6 +124,16 @@ class MavlinkToRos2Bridge(Node):
         self.flow_pub = self.create_publisher(
             Vector3Stamped, '/drone/optical_flow', qos_sensor
         )
+
+        self.declare_parameter('clock_offset_s', 0.0)
+        self.lat = LatencyTracker(
+            offset_s=float(self.get_parameter('clock_offset_s').value))
+        self.lat_pub = self.create_publisher(Float32, '/metrics/telemetry/latency_ms', 10)
+        self.lat_ex_pub = self.create_publisher(
+            Float32, '/metrics/telemetry/latency_excess_ms', 10)
+
+        self.flow_q_pub = self.create_publisher(Float32, '/metrics/flow/quality', 10)
+        self.flow_h_pub = self.create_publisher(Float32, '/metrics/flow/ground_distance_m', 10)
 
         # ---------------- TF ----------------
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -152,6 +182,15 @@ class MavlinkToRos2Bridge(Node):
             except Exception:
                 continue
 
+            ts = telem.get('timestamp') if isinstance(telem, dict) else None
+            if ts is not None:
+                try:
+                    self.lat.update(float(ts))
+                    self.lat_pub.publish(Float32(data=float(self.lat.raw_ms)))
+                    self.lat_ex_pub.publish(Float32(data=float(self.lat.excess_ms)))
+                except Exception:
+                    pass
+
             with self.lock:
                 self.latest_telem = telem
                 self.last_telem_time = time.time()
@@ -168,6 +207,20 @@ class MavlinkToRos2Bridge(Node):
             cur = cur[k]
         return cur
 
+    def _flow_velocity(self, flow: dict):
+        """Body-frame (FLU) metric velocity (m/s) from the optical-flow sensor, or (0, 0).
+
+        Uses vel_x_ms/vel_y_ms (flow_comp_m_* from the Pixhawk). The raw flow_x/y
+        fields are pixel units and must not be treated as m/s.
+        """
+        vx, vy = flow.get('vel_x_ms'), flow.get('vel_y_ms')
+        if vx is None or vy is None or (flow.get('quality') or 0) < self.min_flow_q:
+            return 0.0, 0.0
+        # Sensor/body FRD -> ROS FLU: forward stays, right becomes left (negate y).
+        # If forward/left motion has the wrong sign in /odom, fix FLOW_ORIENT_YAW on the
+        # autopilot (or use of_scale = -1 for a pure x flip).
+        return float(vx) * self.of_scale, -float(vy) * self.of_scale
+
     def _integrate_position(self, telem: dict, now: float):
         """Integrate optical flow velocity into world-frame X/Y position."""
         att = telem.get('attitude') or {}
@@ -177,25 +230,17 @@ class MavlinkToRos2Bridge(Node):
         # Prefer EKF local position if available (already fused on Pixhawk)
         if lpos and all(k in lpos for k in ('x_m', 'y_m', 'z_m')):
             with self.lock:
-                self.pos_x = float(lpos['x_m'])
-                self.pos_y = float(lpos['y_m'])
-                self.pos_z = float(lpos['z_m'])
+                # NED (N, E, D) -> ENU (E, N, U)
+                self.pos_x = float(lpos['y_m'])
+                self.pos_y = float(lpos['x_m'])
+                self.pos_z = -float(lpos['z_m'])
                 self.last_integrate_time = now
-                yaw_deg = att.get('yaw_deg', 0.0)
-                self.last_yaw = math.radians(yaw_deg)
+                self.last_yaw = ned_to_enu_yaw(math.radians(att.get('yaw_deg', 0.0) or 0.0))
             return
 
         # Otherwise dead-reckon from optical flow velocity
-        flow_x = flow.get('flow_x', 0.0)
-        flow_y = flow.get('flow_y', 0.0)
-        if flow_x is None:
-            flow_x = 0.0
-        if flow_y is None:
-            flow_y = 0.0
-
-        # Apply scale and rotate from body frame to world frame using yaw
-        vx_body = float(flow_x) * self.of_scale
-        vy_body = float(flow_y) * self.of_scale
+        # Body (FLU) velocity rotated into the ENU world frame by the ROS yaw
+        vx_body, vy_body = self._flow_velocity(flow)
 
         yaw = self.last_yaw
         c = math.cos(yaw)
@@ -211,27 +256,42 @@ class MavlinkToRos2Bridge(Node):
                     self.pos_y += vy_world * dt
             self.last_integrate_time = now
 
-            yaw_deg = att.get('yaw_deg', 0.0)
-            self.last_yaw = math.radians(yaw_deg)
+            self.last_yaw = ned_to_enu_yaw(math.radians(att.get('yaw_deg', 0.0) or 0.0))
 
     def _get_altitude(self, telem: dict) -> float:
-        """Get Z altitude (positive up) from rangefinder or barometer."""
-        if self.z_source == 'rangefinder':
-            rf = telem.get('rangefinder') or {}
-            d = rf.get('distance_m', None)
-            if d is not None and d > 0:
-                # Rangefinder measures distance to ground; height above ground = +d
-                return float(d)
-        # Fallback to barometer / VFR_HUD altitude
-        baro = telem.get('barometer') or {}
-        if baro and baro.get('baro_alt_m') is not None:
-            # baro_alt_m is absolute pressure altitude above sea level; subtract
-            # takeoff elevation to get height above home (positive up).
-            return float(baro['baro_alt_m']) - self.home_alt_m
-        hud = telem.get('vfr_hud') or {}
-        if hud and hud.get('alt_m') is not None:
-            # VFR_HUD alt is height above home (positive up).
-            return float(hud['alt_m'])
+        """Height above ground/home (m, positive up).
+
+        'auto' tries, in order: dedicated rangefinder -> optical-flow sensor's own
+        ground distance (the MTF-01 has a built-in ToF) -> EKF local position ->
+        barometer -> VFR_HUD. Each is accepted only if it has a valid reading.
+        """
+        def rangefinder():
+            d = (telem.get('rangefinder') or {}).get('distance_m')
+            return float(d) if d is not None and d > 0 else None
+
+        def flow():
+            f = telem.get('optical_flow') or {}
+            d = f.get('ground_distance_m')
+            return float(d) if d and d > 0 and (f.get('quality') or 0) >= self.min_flow_q else None
+
+        def ekf():
+            z = (telem.get('local_position_ned') or {}).get('z_m')
+            return -float(z) if z is not None else None   # NED z is down
+
+        def baro():
+            b = (telem.get('barometer') or {}).get('baro_alt_m')
+            if b is not None:
+                return float(b) - self.home_alt_m
+            a = (telem.get('vfr_hud') or {}).get('alt_m')
+            return float(a) if a is not None else None
+
+        sources = {'rangefinder': [rangefinder], 'flow': [flow], 'ekf': [ekf],
+                   'barometer': [baro],
+                   'auto': [rangefinder, flow, ekf, baro]}.get(self.z_source, [rangefinder, flow, ekf, baro])
+        for fn in sources:
+            v = fn()
+            if v is not None:
+                return v
         return self.pos_z  # hold last
 
     # ------------------------------------------------------------
@@ -262,21 +322,29 @@ class MavlinkToRos2Bridge(Node):
             pitch = math.radians(att.get('pitch_deg', 0.0) or 0.0)
             yaw = math.radians(att.get('yaw_deg', 0.0) or 0.0)
 
-            q = quaternion_from_euler(roll, pitch, yaw)
+            # NED/FRD attitude -> ENU/FLU orientation (see convention note above)
+            q = quaternion_from_euler(roll, -pitch, ned_to_enu_yaw(yaw))
 
             # Twist: linear from optical flow + vertical rate, angular from gyro
-            vx_body = float(flow.get('flow_x', 0.0) or 0.0) * self.of_scale
-            vy_body = float(flow.get('flow_y', 0.0) or 0.0) * self.of_scale
+            vx_body, vy_body = self._flow_velocity(flow)
 
             # Vertical velocity: prefer EKF local position vz, else baro rate (approx 0)
+            vz = 0.0
             if lpos and lpos.get('vz_ms') is not None:
-                vz = float(lpos['vz_ms'])  # NED vz (down positive); negate for up
-            else:
-                vz = 0.0
+                vz = float(lpos['vz_ms'])  # NED vz (down positive); negated below
 
+            # Prefer the EKF's fused velocity (NED world) over raw flow: NED -> ENU -> body FLU
+            if lpos and lpos.get('vx_ms') is not None and lpos.get('vy_ms') is not None:
+                v_e, v_n = float(lpos['vy_ms']), float(lpos['vx_ms'])
+                yr = ned_to_enu_yaw(yaw)
+                c, sn = math.cos(yr), math.sin(yr)
+                vx_body = c * v_e + sn * v_n
+                vy_body = -sn * v_e + c * v_n
+
+            # Gyro is body FRD -> FLU: (x, -y, -z)
             gx = float(imu.get('gyro_x_dps', 0.0) or 0.0)
-            gy = float(imu.get('gyro_y_dps', 0.0) or 0.0)
-            gz = float(imu.get('gyro_z_dps', 0.0) or 0.0)
+            gy = -float(imu.get('gyro_y_dps', 0.0) or 0.0)
+            gz = -float(imu.get('gyro_z_dps', 0.0) or 0.0)
             deg2rad = math.pi / 180.0
 
         # Build odometry message
@@ -337,8 +405,12 @@ class MavlinkToRos2Bridge(Node):
         flow_msg.vector.x = vx_body
         flow_msg.vector.y = vy_body
         rf = telem.get('rangefinder') or {}
-        flow_msg.vector.z = float(rf.get('distance_m', 0.0) or 0.0)
+        flow_msg.vector.z = pos_z  # height used for /odom (see z_source)
         self.flow_pub.publish(flow_msg)
+
+        fl = telem.get('optical_flow') or {}
+        self.flow_q_pub.publish(Float32(data=float(fl.get('quality') or 0)))
+        self.flow_h_pub.publish(Float32(data=float(fl.get('ground_distance_m') or 0.0)))
 
     def destroy_node(self):
         self._stop_event.set()

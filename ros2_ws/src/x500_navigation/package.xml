@@ -12,6 +12,9 @@
   <exec_depend>slam_toolbox</exec_depend>
   <exec_depend>ros_gz_bridge</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>nav2_rviz_plugins</exec_depend>
+  <exec_depend>gps_denied_bridge</exec_depend>
   <exec_depend>x500_px4_bridge</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

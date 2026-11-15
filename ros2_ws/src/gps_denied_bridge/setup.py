@@ -27,6 +27,8 @@ setup(
             'mavlink_to_ros2_bridge = gps_denied_bridge.mavlink_to_ros2_bridge:main',
             'mavlink_cmd_bridge = gps_denied_bridge.mavlink_cmd_bridge:main',
             'lidar_udp_receiver = gps_denied_bridge.lidar_udp_receiver:main',
+            'camera_tcp_receiver = gps_denied_bridge.camera_tcp_receiver:main',
+            'metrics_monitor = gps_denied_bridge.metrics_monitor:main',
         ],
     },
 )

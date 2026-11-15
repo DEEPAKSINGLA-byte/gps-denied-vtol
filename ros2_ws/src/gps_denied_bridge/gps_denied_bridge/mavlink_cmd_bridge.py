@@ -26,6 +26,7 @@ Coordinate convention:
 
 import json
 import math
+import os
 import socket
 import threading
 import time
@@ -43,7 +44,7 @@ class MavlinkCmdBridge(Node):
 
         # ---------------- Parameters ----------------
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
-        self.declare_parameter('pi_ip', '10.184.3.36')          # Raspberry Pi IP
+        self.declare_parameter('pi_ip', os.environ.get('GPS_DENIED_PI_IP', '10.184.3.36'))
         self.declare_parameter('discrete_port', 14552)          # Pi cmd listener
         self.declare_parameter('velocity_port', 14553)          # new Pi velocity listener
         self.declare_parameter('cmd_timeout_s', 0.50)           # stale command timeout

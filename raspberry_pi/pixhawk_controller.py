@@ -771,12 +771,32 @@ class PixhawkVehicle:
             telemetry["rangefinder"] = None
 
         # 10. Optical Flow (For GPS-denied position holding)
+        # OPTICAL_FLOW.flow_x/y are raw sensor units (dpix), NOT m/s. Metric velocity is
+        # flow_comp_m_x/y. For OPTICAL_FLOW_RAD we derive it: rad/s * distance.
         if flow:
+            vel_x = vel_y = None
+            if hasattr(flow, "flow_comp_m_x"):
+                vel_x, vel_y = flow.flow_comp_m_x, flow.flow_comp_m_y
+                gdist = getattr(flow, "ground_distance", 0.0)
+            else:
+                dt_us = getattr(flow, "integration_time_us", 0)
+                gdist = getattr(flow, "distance", 0.0)
+                if dt_us > 0 and gdist > 0:
+                    # MAVLink spec: integrated_x is rotation ABOUT X (linear +Y motion -> negative
+                    # flow); integrated_y is rotation about Y (linear +X motion -> positive flow).
+                    # Subtract the gyro-integrated body rotation so only translation remains.
+                    dt = dt_us * 1e-6
+                    rot_x = flow.integrated_x - getattr(flow, "integrated_xgyro", 0.0)
+                    rot_y = flow.integrated_y - getattr(flow, "integrated_ygyro", 0.0)
+                    vel_x = rot_y / dt * gdist
+                    vel_y = -rot_x / dt * gdist
             telemetry["optical_flow"] = {
                 "flow_x": getattr(flow, "flow_x", getattr(flow, "integrated_x", None)),
                 "flow_y": getattr(flow, "flow_y", getattr(flow, "integrated_y", None)),
+                "vel_x_ms": None if vel_x is None else round(float(vel_x), 3),
+                "vel_y_ms": None if vel_y is None else round(float(vel_y), 3),
                 "quality": getattr(flow, "quality", 0),
-                "ground_distance_m": round(getattr(flow, "ground_distance", 0.0), 3),
+                "ground_distance_m": round(float(gdist), 3),
             }
         else:
             telemetry["optical_flow"] = None

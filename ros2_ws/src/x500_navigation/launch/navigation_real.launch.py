@@ -1,6 +1,7 @@
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -8,11 +9,25 @@ from launch.actions import IncludeLaunchDescription
 from ament_index_python.packages import get_package_share_directory
 
 
+# Override with `export GPS_DENIED_PI_IP=...` or `pi_ip:=...` on the command line.
+DEFAULT_PI_IP = os.environ.get('GPS_DENIED_PI_IP', '10.184.3.36')
+
+
 def generate_launch_description():
     # Launch arguments
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     params_file = LaunchConfiguration('params_file')
-    pi_ip = LaunchConfiguration('pi_ip', default='10.184.3.36')
+    pi_ip = LaunchConfiguration('pi_ip', default=DEFAULT_PI_IP)
+
+    camera = LaunchConfiguration('camera')
+    declare_camera = DeclareLaunchArgument(
+        'camera', default_value='true',
+        description='Start the RGB camera TCP receiver (/camera/image_raw, port 5000)'
+    )
+    declare_rviz = DeclareLaunchArgument('rviz', default_value='true',
+                                         description='Open RViz2 with the validation layout')
+    declare_metrics = DeclareLaunchArgument('metrics', default_value='true',
+                                            description='Run /metrics/* + /diagnostics monitor')
 
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time', default_value='false',
@@ -27,7 +42,7 @@ def generate_launch_description():
         description='Full path to Nav2 params file'
     )
     declare_pi_ip = DeclareLaunchArgument(
-        'pi_ip', default_value='10.184.3.36',
+        'pi_ip', default_value=DEFAULT_PI_IP,
         description='Raspberry Pi IP address for telemetry/command UDP'
     )
 
@@ -43,7 +58,8 @@ def generate_launch_description():
             'base_frame': 'base_link',
             'publish_rate_hz': 10.0,
             'optical_flow_scale': 1.0,
-            'z_source': 'rangefinder',
+            'z_source': 'auto',   # rangefinder -> MTF-01 ground distance -> EKF -> baro
+            'min_flow_quality': 20,
         }],
     )
 
@@ -100,7 +116,41 @@ def generate_launch_description():
         }],
     )
 
+    # 6. RGB camera TCP stream -> /camera/image_raw (+ latency/decode/bandwidth metrics)
+    camera_node = Node(
+        package='gps_denied_bridge',
+        executable='camera_tcp_receiver',
+        name='camera_tcp_receiver',
+        output='screen',
+        condition=IfCondition(camera),
+        parameters=[{'port': 5000, 'frame_id': 'camera_frame',
+                     'image_topic': '/camera/image_raw'}],
+    )
+    # Camera mount: forward-looking, 10 cm ahead / 5 cm above base_link. Adjust to match.
+    static_tf_camera = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_base_to_camera',
+        arguments=['0.10', '0', '0.05', '0', '0', '0', 'base_link', 'camera_frame'],
+        condition=IfCondition(camera),
+    )
+
+    # 7. RViz2 + metrics monitor
+    viz_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory('x500_navigation'),
+            'launch', 'visualization.launch.py')),
+        launch_arguments={
+            'rviz': LaunchConfiguration('rviz'),
+            'metrics': LaunchConfiguration('metrics'),
+            'expect_camera': camera,
+        }.items(),
+    )
+
     return LaunchDescription([
+        declare_camera,
+        declare_rviz,
+        declare_metrics,
         declare_use_sim_time,
         declare_params_file,
         declare_pi_ip,
@@ -109,4 +159,7 @@ def generate_launch_description():
         static_tf_lidar,
         nav2_launch,
         cmd_bridge_node,
+        camera_node,
+        static_tf_camera,
+        viz_launch,
     ])

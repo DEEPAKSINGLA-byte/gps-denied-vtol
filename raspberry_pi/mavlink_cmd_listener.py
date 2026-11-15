@@ -12,8 +12,8 @@ Protocol:
      "yawspeed": 0.0, "frame": "body", "timestamp": ...}
 
   Coordinate convention (body frame):
-    vx = forward (+X), vy = left (+Y), vz = up (+Z), yawspeed = yaw rate (rad/s)
-    These are converted to ArduPilot MAV_CMD_NAV_VELOCITY parameters.
+    vx = forward (+X), vy = left (+Y), vz = up (+Z), yawspeed = yaw rate (rad/s, CCW +)
+    These are converted to NED and sent as SET_POSITION_TARGET_LOCAL_NED (GUIDED).
 
 Usage:
   python3 mavlink_cmd_listener.py --port /dev/pixhawk --baud 115200 --listen-port 14553
@@ -31,13 +31,17 @@ from pixhawk_controller import PixhawkVehicle
 
 
 class MavlinkCmdListener:
-    def __init__(self, connection_str: str, baud: int, listen_port: int):
+    def __init__(self, connection_str: str, baud: int, listen_port: int,
+                 vehicle: PixhawkVehicle | None = None):
+        """If ``vehicle`` is given (e.g. from telemetry_streamer.py) it is shared
+        and left connected on shutdown, so only ONE process owns the serial port."""
         self.connection_str = connection_str
         self.baud = baud
         self.listen_port = listen_port
 
-        self.vehicle: PixhawkVehicle | None = None
-        self.connected = False
+        self.vehicle: PixhawkVehicle | None = vehicle
+        self._owns_vehicle = vehicle is None
+        self.connected = vehicle is not None and vehicle.is_connected
 
         # Latest velocity command
         self.lock = threading.Lock()
@@ -56,8 +60,9 @@ class MavlinkCmdListener:
         )
         self._udp_thread.start()
 
-        # Connect to Pixhawk
-        self._connect()
+        # Connect to Pixhawk (unless a shared, already-connected vehicle was supplied)
+        if self._owns_vehicle:
+            self._connect()
 
     def _connect(self):
         try:
@@ -98,57 +103,47 @@ class MavlinkCmdListener:
                 self.last_cmd_time = time.time()
 
     def _send_velocity_setpoint(self, vx: float, vy: float, vz: float, yawspeed: float):
-        """Send velocity setpoint to Pixhawk via MAVLink.
+        """Send a velocity setpoint to ArduPilot (GUIDED) via SET_POSITION_TARGET_LOCAL_NED.
 
-        For ArduPilot GUIDED mode, uses MAV_CMD_NAV_VELOCITY (command 192):
-          param1 = velocity X (m/s, NED frame: north)
-          param2 = velocity Y (m/s, NED frame: east)
-          param3 = velocity Z (m/s, NED frame: down)
-          param4 = yaw angle (deg, not used for velocity mode)
-          param5 = yaw speed (deg/s)
+        Input is the ROS body frame (REP-103, FLU): vx forward, vy LEFT, vz UP,
+        yawspeed counter-clockwise-positive (rad/s).
+        Output is MAV_FRAME_LOCAL_NED: north/east/down velocities and a clockwise-
+        positive yaw rate, so the conversion is:
+            north =  cos(yaw)*vx + sin(yaw)*vy
+            east  =  sin(yaw)*vx - cos(yaw)*vy
+            down  = -vz
+            yaw_rate_ned = -yawspeed
+        where yaw is ArduPilot's heading (clockwise from North, radians).
         """
         if not self.connected or not self.vehicle or not self.vehicle.master:
             return
 
-        # Convert body-frame (forward/left/up) to NED (north/east/down)
-        # using current yaw from heartbeat
-        yaw_rad = 0.0
-        with self.vehicle._telemetry_lock:
-            hb = self.vehicle._raw_messages.get("HEARTBEAT")
-        if hb and self.vehicle.master:
-            mode_map = self.vehicle.master.mode_mapping()
-            if mode_map:
-                inv_map = {v: k for k, v in mode_map.items()}
-                if hb.custom_mode in inv_map:
-                    pass  # we just need yaw from attitude
-        # Get yaw from attitude message
         with self.vehicle._telemetry_lock:
             att = self.vehicle._raw_messages.get("ATTITUDE")
-        if att:
-            yaw_rad = float(att.yaw)
+        if att is None:
+            return  # no heading yet; do not guess - hold position
+        yaw = float(att.yaw)
 
-        # Body -> NED rotation
-        c = math.cos(yaw_rad)
-        s = math.sin(yaw_rad)
-        vx_ned = c * vx - s * vy      # north
-        vy_ned = s * vx + c * vy      # east
-        vz_ned = -vz                  # down (negate up)
+        c, s = math.cos(yaw), math.sin(yaw)
+        v_north = c * vx + s * vy
+        v_east = s * vx - c * vy
+        v_down = -vz
+        yaw_rate = -yawspeed
 
-        deg_per_sec = math.degrees(yawspeed)
-
+        # type_mask: ignore position (7), acceleration (448) and yaw (1024); use velocity + yaw rate
+        type_mask = 0b010111000111  # 1479
         try:
-            self.vehicle.master.mav.command_long_send(
+            self.vehicle.master.mav.set_position_target_local_ned_send(
+                0,                                   # time_boot_ms (ignored)
                 self.vehicle.target_system,
                 self.vehicle.target_component,
-                192,  # MAV_CMD_NAV_VELOCITY
-                0,    # confirmation
-                vx_ned,    # param1: vel X (north) m/s
-                vy_ned,    # param2: vel Y (east) m/s
-                vz_ned,    # param3: vel Z (down) m/s
-                0,             # param4: yaw (deg) - unused
-                0,             # param5: unused
-                0,             # param6: unused
-                deg_per_sec,   # param7: yaw speed (deg/s)
+                1,                                   # MAV_FRAME_LOCAL_NED
+                type_mask,
+                0, 0, 0,                             # x, y, z (ignored)
+                v_north, v_east, v_down,
+                0, 0, 0,                             # accelerations (ignored)
+                0,                                   # yaw (ignored)
+                yaw_rate,
             )
         except Exception as e:
             print(f'[LISTENER] Error sending velocity setpoint: {e}')
@@ -172,6 +167,9 @@ class MavlinkCmdListener:
             print(f'[LISTENER] Armed: {msg}')
         else:
             print(f'[LISTENER] Arm failed: {msg}')
+
+    def stop(self):
+        self._stop_event.set()
 
     def run(self):
         print(f'[LISTENER] Listening for velocity commands on UDP 0.0.0.0:{self.listen_port}')
@@ -217,7 +215,7 @@ class MavlinkCmdListener:
             if self._udp_thread and self._udp_thread.is_alive():
                 self._udp_thread.join(timeout=1.0)
             self.sock.close()
-            if self.vehicle:
+            if self.vehicle and self._owns_vehicle:
                 self.vehicle.disconnect()
             print('[LISTENER] Shutdown complete.')
 

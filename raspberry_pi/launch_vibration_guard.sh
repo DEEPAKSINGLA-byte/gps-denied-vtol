@@ -9,8 +9,8 @@
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PI_USER="deimos"
-PI_IP="10.184.3.36"
+PI_USER="${GPS_DENIED_PI_USER:-deimos}"
+PI_IP="${GPS_DENIED_PI_IP:-10.184.3.36}"
 
 # Check if user requested remote execution on the Raspberry Pi
 if [[ "$1" == "--remote" ]] || [[ ! -e "/dev/pixhawk" && ! -e "/dev/ttyACM0" ]]; then
