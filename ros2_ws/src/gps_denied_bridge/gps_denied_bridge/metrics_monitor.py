@@ -81,6 +81,8 @@ class MetricsMonitor(Node):
         P('camera_min_hz', 8.0)
         P('telemetry_min_hz', 5.0)
         P('expect_camera', True)
+        P('expect_segmentation', False)
+        P('segmentation_min_hz', 5.0)
         P('latency_warn_ms', 150.0)    # thresholds apply to *excess* latency
         P('latency_error_ms', 400.0)
         P('tf_age_warn_ms', 250.0)
@@ -95,6 +97,7 @@ class MetricsMonitor(Node):
         self.odom_frame, self.base_frame = g('odom_frame'), g('base_frame')
         self.cfg = {k: g(k) for k in (
             'lidar_min_hz', 'camera_min_hz', 'telemetry_min_hz', 'expect_camera',
+            'expect_segmentation', 'segmentation_min_hz',
             'latency_warn_ms', 'latency_error_ms', 'tf_age_warn_ms',
             'obstacle_warn_m', 'obstacle_error_m', 'scan_max_range_m')}
         self.trail_max = int(g('trail_max_points'))
@@ -104,7 +107,8 @@ class MetricsMonitor(Node):
 
         # ---- state ----
         self.r = {k: RateTracker() for k in (
-            'lidar', 'telemetry', 'camera', 'odom', 'cmd', 'lcm', 'gcm')}
+            'lidar', 'telemetry', 'camera', 'odom', 'cmd', 'lcm', 'gcm', 'seg')}
+        self.seg = {'inference_ms': 0.0, 'latency_ms': 0.0, 'num_detections': 0.0}
         self.lat = {'lidar': (0.0, 0.0), 'telemetry': (0.0, 0.0), 'camera': (0.0, 0.0)}
         self.cam_extra = {'decode_ms': 0.0, 'bandwidth_mbps': 0.0}
         self.last_scan = None
@@ -155,6 +159,14 @@ class MetricsMonitor(Node):
             Float32, '/metrics/camera/bandwidth_mbps',
             lambda m: self.cam_extra.__setitem__('bandwidth_mbps', m.data), sensor)
 
+        # Segmentation node health (quadcopter_perception/segmentation_node)
+        self.create_subscription(Float32, '/metrics/segmentation/inference_ms',
+                                 self.on_seg_infer, sensor)
+        for k in ('latency_ms', 'num_detections'):
+            self.create_subscription(
+                Float32, f'/metrics/segmentation/{k}',
+                lambda m, k=k: self.seg.__setitem__(k, m.data), sensor)
+
         # ---- publishers ----
         self._pubs = {}
         self.diag_pub = self.create_publisher(DiagnosticArray, '/diagnostics', 10)
@@ -176,26 +188,30 @@ class MetricsMonitor(Node):
         self.lat[name] = (msg.data, self.lat[name][1])
         self.r[name].tick() if name in ('telemetry', 'camera') else None
 
+    def on_seg_infer(self, msg):
+        self.r['seg'].tick()
+        self.seg['inference_ms'] = msg.data
+
     def on_lat_ex(self, name, msg):
         self.lat[name] = (self.lat[name][0], msg.data)
 
     # -------------------------------------------------------------- callbacks
     def on_scan(self, msg: LaserScan):
         self.r['lidar'].tick()
+        prev = self.last_scan
         self.last_scan = msg
         self.scan_frame = msg.header.frame_id
         rng = np.asarray(msg.ranges, dtype=np.float32)
         ok = np.isfinite(rng) & (rng >= msg.range_min) & (rng <= msg.range_max)
         self.valid_ratio = float(ok.mean()) if rng.size else 0.0
         self.nearest = float(rng[ok].min()) if ok.any() else float('nan')
-        # Would Nav2's message filter accept this scan? (TF available at its stamp)
-        try:
-            self.tf_buf.lookup_transform(
-                self.odom_frame, msg.header.frame_id, Time.from_msg(msg.header.stamp))
-            fail = 0.0
-        except Exception:
-            fail = 1.0
-        self.tf_fail_ema += 0.05 * (fail - self.tf_fail_ema)
+        # Would Nav2's message filter accept the PREVIOUS scan? Checking the new scan right
+        # away almost always fails (its odom->base_link TF hasn't arrived yet), while Nav2
+        # queues scans until TF catches up; one scan period later is a fair test.
+        if prev is not None:
+            ok_tf = self.tf_buf.can_transform(
+                self.odom_frame, prev.header.frame_id, Time.from_msg(prev.header.stamp))
+            self.tf_fail_ema += 0.05 * ((0.0 if ok_tf else 1.0) - self.tf_fail_ema)
 
     def on_odom(self, msg: Odometry):
         self.r['odom'].tick()
@@ -343,6 +359,15 @@ class MetricsMonitor(Node):
         rows.append(('Camera', lv, sm, {
             'rate_hz': self.r['camera'].rate_hz(), 'latency_ms': self.lat['camera'][0],
             'latency_excess_ms': self.lat['camera'][1], **self.cam_extra}))
+        hz = self.r['seg'].rate_hz()
+        if hz <= 0.0:
+            lv, sm = (ERROR if c['expect_segmentation'] else WARN), 'no data'
+        else:
+            lv = WARN if hz < c['segmentation_min_hz'] else OK
+            sm = (f"{hz:.1f} Hz, {self.seg['inference_ms']:.0f} ms GPU, "
+                  f"{int(self.seg['num_detections'])} obj")
+        if c['expect_segmentation'] or hz > 0.0:
+            rows.append(('Segment', lv, sm, {'rate_hz': hz, **self.seg}))
         lv, sm = self._stream_level('telemetry', c['telemetry_min_hz'])
         rows.append(('Telemetry', lv, sm, {
             'rate_hz': self.r['telemetry'].rate_hz(), 'latency_ms': self.lat['telemetry'][0],

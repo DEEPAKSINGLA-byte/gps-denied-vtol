@@ -2,7 +2,7 @@ import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.actions import IncludeLaunchDescription
@@ -23,6 +23,15 @@ def generate_launch_description():
     declare_camera = DeclareLaunchArgument(
         'camera', default_value='true',
         description='Start the RGB camera TCP receiver (/camera/image_raw, port 5000)'
+    )
+    segmentation = LaunchConfiguration('segmentation')
+    declare_segmentation = DeclareLaunchArgument(
+        'segmentation', default_value='true',
+        description='Run YOLOv8 segmentation on /camera/image_raw (GPU) -> /segmentation/*'
+    )
+    declare_seg_model = DeclareLaunchArgument(
+        'seg_model', default_value='yolov8n-seg.pt',
+        description='Segmentation weights (path, or a name Ultralytics downloads)'
     )
     declare_rviz = DeclareLaunchArgument('rviz', default_value='true',
                                          description='Open RViz2 with the validation layout')
@@ -135,6 +144,16 @@ def generate_launch_description():
         condition=IfCondition(camera),
     )
 
+    # 6b. YOLOv8 segmentation on the camera topic (needs camera:=true)
+    segmentation_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory('quadcopter_perception'),
+            'launch', 'segmentation.launch.py')),
+        launch_arguments={'model': LaunchConfiguration('seg_model')}.items(),
+        condition=IfCondition(PythonExpression(
+            ["'", camera, "' == 'true' and '", segmentation, "' == 'true'"])),
+    )
+
     # 7. RViz2 + metrics monitor
     viz_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
@@ -144,11 +163,15 @@ def generate_launch_description():
             'rviz': LaunchConfiguration('rviz'),
             'metrics': LaunchConfiguration('metrics'),
             'expect_camera': camera,
+            'expect_segmentation': PythonExpression(
+                ["'", camera, "' == 'true' and '", segmentation, "' == 'true'"]),
         }.items(),
     )
 
     return LaunchDescription([
         declare_camera,
+        declare_segmentation,
+        declare_seg_model,
         declare_rviz,
         declare_metrics,
         declare_use_sim_time,
@@ -160,6 +183,7 @@ def generate_launch_description():
         nav2_launch,
         cmd_bridge_node,
         camera_node,
+        segmentation_launch,
         static_tf_camera,
         viz_launch,
     ])

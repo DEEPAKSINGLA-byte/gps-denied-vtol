@@ -13,8 +13,9 @@
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python"/>
   <img src="https://img.shields.io/badge/ROS_2-Humble-FC4050?logo=ros&logoColor=white" alt="ROS 2"/>
   <img src="https://img.shields.io/badge/PX4-Autopilot-6300ff" alt="PX4"/>
+  <img src="https://img.shields.io/badge/ArduPilot-Pixhawk-4D4D4D" alt="ArduPilot"/>
   <img src="https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&logoColor=white" alt="OpenCV"/>
-  <img src="https://img.shields.io/badge/Platform-Raspberry_Pi_5-C51A4A?logo=raspberrypi&logoColor=white" alt="Raspberry Pi 5"/>
+  <img src="https://img.shields.io/badge/Platform-Raspberry_Pi-C51A4A?logo=raspberrypi&logoColor=white" alt="Raspberry Pi"/>
   <img src="https://img.shields.io/badge/Status-Research-important" alt="Status"/>
 </p>
 
@@ -85,8 +86,9 @@ We explore **15 candidate navigation modalities**, narrow them through a statist
 
 | Stack | Purpose |
 | :--- | :--- |
-| **PX4 Autopilot** | Real-time stabilization & control on the Kakute H7 |
-| **Holybro Kakute H7 (STM32H7)** | Flight controller: `100 Hz` attitude/rate loops |
+| **PX4 Autopilot** | Real-time stabilization & control on the Kakute H7 (STM32H7), used with ROS 2 via uXRCE-DDS |
+| **ArduPilot / Pixhawk** | Flight controller for the Raspberry Pi companion computer telemetry stack (MAVLink over USB/UART) |
+| **Holybro Kakute H7 (STM32H7)** | PX4 flight controller: `100 Hz` attitude/rate loops |
 | **Raspberry Pi Pico (option)** | Dedicated low-latency sensor telemetry / GPIO |
 
 ### Sensor Payload
@@ -94,6 +96,7 @@ We explore **15 candidate navigation modalities**, narrow them through a statist
 | Sensor | Role |
 | :--- | :--- |
 | **SC132GS Binocular Stereo Camera** | Visual odometry, depth, point clouds, ArUco tags |
+| **USB RGB Camera (/dev/camera)** | Live image matrix streaming over Wi-Fi to laptop for perception/segmentation |
 | **IMU (on FC + optional external)** | Gyro/accel fusion for VIO |
 | **Optical Flow + Rangefinder (option)** | Velocity + altitude hold |
 
@@ -222,14 +225,16 @@ gps-denied-vtol/
 │   └── test.py                          # MAVSDK drone test script
 ├── benchmarking/                        # Benchmark charts & evaluation plots (1-12)
 ├── ros2_ws/                             # Unified ROS 2 workspace
+│   ├── px4_msgs/                        # PX4 uORB message definitions (ROS 2)
 │   └── src/
-│       ├── x500_px4_bridge/             # Nav2 -> PX4 bridge & TF broadcaster nodes
-│       ├── x500_navigation/             # ROS 2 package (Nav2 config & launch files)
+│       ├── gps_denied_bridge/           # Pi↔laptop MAVLink↔ROS 2 bridges, telemetry receivers, metrics
+│       ├── m-explore-ros2/              # explore_lite & multirobot_map_merge
 │       ├── quadcopter_bringup/          # Drone bringup, SITL, and teleop nodes
 │       ├── quadcopter_localization/     # State estimation & TF helpers
-│       ├── quadcopter_perception/       # Vision & segmentation
 │       ├── quadcopter_mapping/          # SLAM & mapping utilities
-│       └── m-explore-ros2/              # explore_lite & multirobot_map_merge
+│       ├── quadcopter_perception/       # Vision & segmentation
+│       ├── x500_navigation/             # ROS 2 package (Nav2 config & launch files)
+│       └── x500_px4_bridge/             # Nav2 -> PX4 bridge & TF broadcaster nodes
 └── README.md
 ```
 
@@ -263,10 +268,81 @@ python3 scripts/analysis.py
 
 Regenerates all **12 PNG charts** in `benchmarking/`.
 
+### 4. Raspberry Pi Onboard Stack (Hardware Bring-up)
+
+The `raspberry_pi/` directory contains the complete onboard companion computer stack for the Pixhawk/ArduPilot flight controller, including MAVLink telemetry streaming, LiDAR/camera streaming over Wi-Fi, udev rules for persistent device links, and PlotJuggler visualization.
+
+#### 4.1 Install udev Rules & Dependencies (on Pi)
+
+```bash
+cd ~/gps-denied-vtol/raspberry_pi
+
+# Install persistent udev rules for /dev/pixhawk and /dev/camera
+sudo ./install_udev_rules.sh
+ls -la /dev/pixhawk /dev/camera
+
+# Add user to dialout group for serial access
+sudo usermod -aG dialout $USER
+# (log out and back in, or run: newgrp dialout)
+
+# Install Python dependencies
+pip install -r requirements.txt --break-system-packages
+```
+
+#### 4.2 Verify Pixhawk Connection
+
+```bash
+python3 test_connection.py
+```
+
+#### 4.3 Transmit Everything from the Pi (Single Command)
+
+On the Raspberry Pi, stream telemetry, LiDAR, and camera to the ground laptop:
+
+```bash
+python3 start_streams.py <LAPTOP_IP>
+```
+
+Example:
+```bash
+python3 start_streams.py 10.184.3.231
+```
+
+This starts and supervises (auto-restart on crash):
+| Stream | Script | Transport | Port |
+| :--- | :--- | :--- | :--- |
+| Telemetry (JSON + MAVLink) | `telemetry_streamer.py` | UDP | 14551 / 14550 |
+| LiDAR (YDLIDAR scans) | `lidar_udp_streamer.py` | UDP | 14552 |
+| Camera (RGB matrix) | `camera_streamer.py` | TCP | 5000 |
+
+Options: `--no-lidar --no-camera --no-telemetry --nav-cmds --pixhawk-port --lidar-port --camera-device --fps --quality --rate`
+
+Ctrl-C stops all streams.
+
+#### 4.4 Flight Control Utilities
+
+```bash
+# Arm/disarm (use --force to bypass GPS pre-arm checks for indoor testing)
+python3 arm_disarm.py --arm --force
+python3 arm_disarm.py --disarm
+
+# Switch flight modes
+python3 set_mode.py alt_hold    # or: poshold, land, stabilize, guided, rtl
+python3 set_mode.py --list
+
+# Unified interactive CLI
+python3 drone_cli.py
+
+# Check Pixhawk telemetry locally
+python3 sensor_telemetry.py --snapshot --json
+```
+
+See [`raspberry_pi/README.md`](raspberry_pi/README.md) and [`raspberry_pi/instruction.md`](raspberry_pi/instruction.md) for the full operating manual.
+
 ### Hardware bring-up (roadmap)
 
 1. Flash PX4 on the Kakute H7 and verify basic manual flight.
-2. Install ROS 2 Humble + `mavros` on the Raspberry Pi 5.
+2. Install ROS 2 Humble + `mavros` on the Raspberry Pi.
 3. Connect stereo camera; calibrate intrinsics/extrinsics.
 4. Run V-SLAM/VIO per the [Roadmap](#roadmap).
 

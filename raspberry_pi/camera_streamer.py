@@ -263,10 +263,8 @@ def run_streamer(
                 except Exception as e:
                     if snapshot:
                         print(f"[FAILED] Could not connect to {target_ip}:{port}: {e}")
-                        grabber.stop()
-                        cap.release()
                         sock.close()
-                        sys.exit(1)
+                        sys.exit(1)  # outer finally stops the grabber
                     if first_attempt:
                         print(f"Waiting for Ground Station receiver at {target_ip}:{port} (retrying every 1s)...")
                         first_attempt = False

@@ -3,9 +3,17 @@
 <package format="3">
   <name>quadcopter_perception</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>YOLOv8 instance segmentation of the drone camera stream (ROS 2)</description>
   <maintainer email="reman.airport@gmail.com">remandey</maintainer>
   <license>TODO: License declaration</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>vision_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <!-- ultralytics + torch come from pip: pip install ultralytics -->
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

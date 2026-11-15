@@ -113,7 +113,7 @@ This starts and supervises (auto-restart with back-off) telemetry (UDP 14551/145
 
 Options: `--no-lidar --no-camera --no-telemetry`, `--lidar-port /dev/ttyUSB0`, `--camera-device /dev/camera`, `--fps 20 --quality 70`, `--rate 10`, `--pixhawk-port`.
 
-Add `--nav-cmds` to also accept Nav2 velocity commands (UDP 14553). It runs inside the telemetry process and shares its Pixhawk connection, so there is no serial-port conflict. **Caution:** on the first velocity command it switches to GUIDED and force-arms; test with props off.
+Add `--nav-cmds` to also accept Nav2 velocity commands (UDP 14553). It runs inside the telemetry process and shares its Pixhawk connection, so there is no serial-port conflict. Velocity setpoints are forwarded **only while the vehicle is already armed and in GUIDED**; arming stays a deliberate operator action (`drone_cli.py` / `arm_disarm.py`). Test with props off.
 
 Start the laptop side first (the camera receiver listens on TCP 5000; the Pi reconnects automatically):
 ```bash

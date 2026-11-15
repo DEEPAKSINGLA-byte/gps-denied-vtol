@@ -101,6 +101,8 @@ class PixhawkVehicle:
         6: "RTK Fixed",
     }
 
+    STALE_AFTER_S = 1.0  # navigation messages older than this are treated as missing
+
     def __init__(
         self,
         connection_str: Optional[str] = None,
@@ -129,6 +131,7 @@ class PixhawkVehicle:
         # Latest raw messages store
         self._telemetry_lock = threading.Lock()
         self._raw_messages: Dict[str, Any] = {}
+        self._msg_times: Dict[str, float] = {}   # monotonic receive time per message type
         self._recent_statustexts: List[str] = []
 
         # Background thread
@@ -329,8 +332,15 @@ class PixhawkVehicle:
                 if msg is not None:
                     last_msg_time = now
                     mtype = msg.get_type()
+                    # Only the autopilot's own HEARTBEAT defines armed state / flight mode;
+                    # other components (camera, gimbal, OSD, ...) also send heartbeats.
+                    foreign_hb = mtype == "HEARTBEAT" and (
+                        msg.get_srcSystem() != self.target_system
+                        or msg.get_srcComponent() != self.target_component)
                     with self._telemetry_lock:
-                        self._raw_messages[mtype] = msg
+                        if not foreign_hb:
+                            self._raw_messages[mtype] = msg
+                            self._msg_times[mtype] = time.monotonic()
                         if mtype == "STATUSTEXT":
                             text = getattr(msg, "text", "")
                             self._recent_statustexts.append(text)
@@ -347,25 +357,49 @@ class PixhawkVehicle:
                             pass
                 else:
                     # If no message received for > 4 seconds, check if device vanished
-                    if now - last_msg_time > 4.0:
-                        if not os.path.exists(self.connection_str):
-                            logger.warning("Device %s disappeared! Scanning for new port...", self.connection_str)
-                            detected = self.detect_serial_port()
-                            if detected:
-                                logger.info("Found re-enumerated Pixhawk on %s! Reconnecting...", detected)
-                                self.connection_str = detected
-                                try:
-                                    self.master.close()
-                                except Exception:
-                                    pass
-                                self.master = mavutil.mavlink_connection(self.connection_str, baud=self.baud)
-                                self.master.wait_heartbeat(timeout=3.0)
-                                self.request_data_streams(rate_hz=10)
-                                last_msg_time = time.time()
+                    if now - last_msg_time > 4.0 and self._try_reenumerate():
+                        last_msg_time = time.time()
                     time.sleep(0.002)
             except Exception as e:
+                # A vanished USB device makes the read RAISE (SerialException) rather than
+                # return None, so the re-enumeration check must also run here.
                 logger.debug("Telemetry worker error: %s", e)
+                if time.time() - last_msg_time > 4.0 and self._try_reenumerate():
+                    last_msg_time = time.time()
                 time.sleep(0.05)
+
+    def _try_reenumerate(self) -> bool:
+        """If the serial device disappeared, find the Pixhawk again and reopen it."""
+        if self.connection_str and os.path.exists(self.connection_str):
+            return False
+        logger.warning("Device %s disappeared! Scanning for new port...", self.connection_str)
+        detected = self.detect_serial_port()
+        if not detected:
+            return False
+        logger.info("Found re-enumerated Pixhawk on %s! Reconnecting...", detected)
+        self.connection_str = detected
+        try:
+            self.master.close()
+        except Exception:
+            pass
+        self.master = mavutil.mavlink_connection(
+            self.connection_str, baud=self.baud, source_system=255, source_component=0)
+        self.master.wait_heartbeat(timeout=3.0)
+        self.request_data_streams(rate_hz=10)
+        return True
+
+    def _last_ack(self):
+        with self._telemetry_lock:
+            return self._raw_messages.get("COMMAND_ACK")
+
+    def _new_ack(self, prev, command):
+        """COMMAND_ACK for ``command`` received since ``prev`` (from the telemetry thread's
+        cache). Never call master.recv_match() outside the telemetry thread: two threads
+        reading the same port race and the ACK is swallowed by the other reader."""
+        ack = self._last_ack()
+        if ack is not None and ack is not prev and ack.command == command:
+            return ack
+        return None
 
     @property
     def is_armed(self) -> bool:
@@ -432,6 +466,7 @@ class PixhawkVehicle:
         with self._telemetry_lock:
             self._recent_statustexts.clear()
 
+        prev_ack = self._last_ack()
         # Send command MAV_CMD_COMPONENT_ARM_DISARM (param1=1 to arm)
         self.master.mav.command_long_send(
             self.target_system,
@@ -451,8 +486,8 @@ class PixhawkVehicle:
             if self.is_armed:
                 return True, "Vehicle successfully ARMED"
 
-            msg = self.master.recv_match(type="COMMAND_ACK", blocking=False)
-            if msg and msg.command == mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM:
+            msg = self._new_ack(prev_ack, mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM)
+            if msg:
                 ack_received = True
                 ack_result = msg.result
                 if ack_result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
@@ -491,6 +526,7 @@ class PixhawkVehicle:
         force_param = 21196 if force else 0
         logger.info("Sending DISARM command (force=%s)...", force)
 
+        prev_ack = self._last_ack()
         # Send command MAV_CMD_COMPONENT_ARM_DISARM (param1=0 to disarm)
         self.master.mav.command_long_send(
             self.target_system,
@@ -507,8 +543,8 @@ class PixhawkVehicle:
             if not self.is_armed:
                 return True, "Vehicle successfully DISARMED"
 
-            msg = self.master.recv_match(type="COMMAND_ACK", blocking=False)
-            if msg and msg.command == mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM:
+            msg = self._new_ack(prev_ack, mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM)
+            if msg:
                 if msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
                     time.sleep(0.3)
                     if not self.is_armed:
@@ -603,6 +639,7 @@ class PixhawkVehicle:
             return False, "Vehicle must be armed before takeoff"
 
         logger.info("Sending TAKEOFF command to %.1f meters...", altitude_m)
+        prev_ack = self._last_ack()
         self.master.mav.command_long_send(
             self.target_system,
             self.target_component,
@@ -614,8 +651,8 @@ class PixhawkVehicle:
 
         start = time.time()
         while time.time() - start < timeout:
-            msg = self.master.recv_match(type="COMMAND_ACK", blocking=False)
-            if msg and msg.command == mavutil.mavlink.MAV_CMD_NAV_TAKEOFF:
+            msg = self._new_ack(prev_ack, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF)
+            if msg:
                 if msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
                     return True, f"Takeoff command accepted for {altitude_m:.1f}m altitude"
                 return False, f"Takeoff command rejected (ACK code: {msg.result})"
@@ -629,6 +666,14 @@ class PixhawkVehicle:
         """
         with self._telemetry_lock:
             msgs = dict(self._raw_messages)
+            times = dict(self._msg_times)
+
+        # A sensor that stops streaming must read as "missing", not as its last value
+        # forever - otherwise the ROS bridge keeps publishing a frozen EKF position.
+        now_m = time.monotonic()
+        for k in ("LOCAL_POSITION_NED", "OPTICAL_FLOW", "OPTICAL_FLOW_RAD", "DISTANCE_SENSOR"):
+            if k in msgs and now_m - times.get(k, 0.0) > self.STALE_AFTER_S:
+                del msgs[k]
 
         hb = msgs.get("HEARTBEAT")
         att = msgs.get("ATTITUDE")

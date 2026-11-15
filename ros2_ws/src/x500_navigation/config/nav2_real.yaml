@@ -206,12 +206,17 @@ local_costmap:
         plugin: "nav2_costmap_2d::ObstacleLayer"
 
         enabled: true
+        max_obstacle_height: 20.0
 
         observation_sources: scan
 
         scan:
           topic: /scan
           data_type: "LaserScan"
+          # Scan points sit at flight altitude + mount height in the odom frame; Nav2's
+          # default 0.0-2.0 m window would drop EVERY return above ~1.7 m altitude.
+          min_obstacle_height: 0.10   # reject floor returns when the drone pitches
+          max_obstacle_height: 20.0
 
           marking: true
           clearing: true
@@ -260,12 +265,17 @@ global_costmap:
         plugin: "nav2_costmap_2d::ObstacleLayer"
 
         enabled: true
+        max_obstacle_height: 20.0
 
         observation_sources: scan
 
         scan:
           topic: /scan
           data_type: "LaserScan"
+          # Scan points sit at flight altitude + mount height in the odom frame; Nav2's
+          # default 0.0-2.0 m window would drop EVERY return above ~1.7 m altitude.
+          min_obstacle_height: 0.10   # reject floor returns when the drone pitches
+          max_obstacle_height: 20.0
 
           marking: true
           clearing: true

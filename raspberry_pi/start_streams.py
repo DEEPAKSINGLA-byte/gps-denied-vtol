@@ -109,7 +109,7 @@ def main():
     ap.add_argument('--no-lidar', action='store_true')
     ap.add_argument('--no-camera', action='store_true')
     ap.add_argument('--nav-cmds', action='store_true',
-                    help='Also accept Nav2 velocity commands on UDP 14553 (arms + GUIDED on first command!)')
+                    help='Also accept Nav2 velocity commands on UDP 14553 (forwarded only while armed in GUIDED)')
     ap.add_argument('--pixhawk-port', default=None, help='Pixhawk serial port (default: auto /dev/pixhawk)')
     ap.add_argument('--lidar-port', default='/dev/ttyUSB0')
     ap.add_argument('--lidar-baud', type=int, default=115200)

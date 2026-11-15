@@ -8,6 +8,7 @@ import socket
 import json
 import argparse
 import serial
+import sys
 
 def main():
     parser = argparse.ArgumentParser(description="YDLIDAR G2 UDP Streamer")
@@ -85,7 +86,12 @@ def main():
 
         except KeyboardInterrupt:
             break
-        except Exception as e:
+        except serial.SerialException as e:
+            # Unplugged USB: exit so the supervisor (start_streams.py) restarts us,
+            # instead of spinning forever in this loop at 100% CPU.
+            print(f"[STREAMER] Serial error ({e}); exiting")
+            sys.exit(1)
+        except Exception:
             continue
 
     ser.write(bytes([0xA5, 0x65]))

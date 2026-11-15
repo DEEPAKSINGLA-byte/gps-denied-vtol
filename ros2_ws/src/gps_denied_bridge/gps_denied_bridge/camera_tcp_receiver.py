@@ -395,7 +395,7 @@ class CameraROS2Receiver(Node):
 
                     client_sock.close()
 
-                if self.running:
+                if self.running and client_sock is not None:
 
                     self.get_logger().warning(
                         "Camera disconnected. Waiting for reconnection..."

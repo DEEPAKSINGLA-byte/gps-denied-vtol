@@ -20,12 +20,14 @@ def generate_launch_description():
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('metrics', default_value='true'),
         DeclareLaunchArgument('expect_camera', default_value='true'),
+        DeclareLaunchArgument('expect_segmentation', default_value='false'),
         DeclareLaunchArgument('rviz_config', default_value=rviz_cfg),
         Node(
             package='gps_denied_bridge', executable='metrics_monitor',
             name='metrics_monitor', output='screen',
             condition=IfCondition(LaunchConfiguration('metrics')),
             parameters=[{'expect_camera': LaunchConfiguration('expect_camera'),
+                         'expect_segmentation': LaunchConfiguration('expect_segmentation'),
                          'use_sim_time': False}]),
         Node(
             package='rviz2', executable='rviz2', name='rviz2', output='log',

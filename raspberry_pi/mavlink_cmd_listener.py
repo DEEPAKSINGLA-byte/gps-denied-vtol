@@ -32,12 +32,16 @@ from pixhawk_controller import PixhawkVehicle
 
 class MavlinkCmdListener:
     def __init__(self, connection_str: str, baud: int, listen_port: int,
-                 vehicle: PixhawkVehicle | None = None):
+                 vehicle: PixhawkVehicle | None = None, auto_arm: bool = False):
         """If ``vehicle`` is given (e.g. from telemetry_streamer.py) it is shared
         and left connected on shutdown, so only ONE process owns the serial port."""
         self.connection_str = connection_str
         self.baud = baud
         self.listen_port = listen_port
+        # Arming/mode changes belong to the operator or to mavlink_cmd_bridge's explicit
+        # (auto_arm / auto_guided) discrete commands. By default this listener only forwards
+        # velocity while the vehicle is ALREADY armed and in GUIDED.
+        self.auto_arm = auto_arm
 
         self.vehicle: PixhawkVehicle | None = vehicle
         self._owns_vehicle = vehicle is None
@@ -185,19 +189,19 @@ class MavlinkCmdListener:
                 now = time.time()
                 cmd_age = now - cmd_time if cmd_time > 0 else 999.0
 
-                # One-time setup: set GUIDED + arm
-                if self.connected and not mode_set:
-                    self._set_mode_guided()
-                    mode_set = True
-
-                if self.connected and mode_set and not armed:
-                    # Wait a moment for mode to take effect, then arm
-                    if cmd_age < 2.0:
+                if self.auto_arm and self.connected and cmd_age < 2.0:
+                    # Opt-in legacy behaviour: GUIDED + force-arm on the first command
+                    if not mode_set:
+                        self._set_mode_guided()
+                        mode_set = True
+                    if not armed:
                         self._arm()
                         armed = True
 
-                # Send velocity if fresh
-                if self.connected and armed and cmd and cmd_age < 1.0:
+                # Send velocity only if fresh AND the vehicle is armed in GUIDED
+                ready = (self.connected and self.vehicle.is_armed
+                         and self.vehicle.flight_mode == 'GUIDED')
+                if ready and cmd and cmd_age < 1.0:
                     action = str(cmd.get('action', '')).lower()
                     if action == 'velocity':
                         vx = float(cmd.get('vx', 0.0))
@@ -225,9 +229,11 @@ def main():
     parser.add_argument('--port', type=str, default='/dev/pixhawk', help='Pixhawk serial port (default: /dev/pixhawk)')
     parser.add_argument('--baud', type=int, default=115200, help='Baud rate (default: 115200)')
     parser.add_argument('--listen-port', type=int, default=14553, help='UDP listen port (default: 14553)')
+    parser.add_argument('--auto-arm', action='store_true',
+                        help='Switch to GUIDED and FORCE-ARM on the first velocity command (dangerous)')
     args = parser.parse_args()
 
-    listener = MavlinkCmdListener(args.port, args.baud, args.listen_port)
+    listener = MavlinkCmdListener(args.port, args.baud, args.listen_port, auto_arm=args.auto_arm)
     listener.run()
 
 

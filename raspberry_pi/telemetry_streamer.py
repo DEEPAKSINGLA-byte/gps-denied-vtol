@@ -292,7 +292,7 @@ def main():
         help="Streaming mode: 'both', 'json', or 'mavlink' (default: both)"
     )
     parser.add_argument("--velocity-port", type=int, default=0,
-                        help="Enable Nav2 velocity listener on this UDP port (e.g. 14553; 0 = off). Arms + GUIDED on first command!")
+                        help="Enable Nav2 velocity listener on this UDP port (e.g. 14553; 0 = off). Forwards only while armed in GUIDED.")
     parser.add_argument("--rate", type=float, default=10.0, help="JSON telemetry rate in Hz (default: 10.0)")
     parser.add_argument("--port", type=str, default=None, help="Pixhawk serial port (default: auto-detect)")
     parser.add_argument("--baud", type=int, default=115200, help="Pixhawk serial baud (default: 115200)")
