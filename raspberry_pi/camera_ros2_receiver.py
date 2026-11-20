@@ -25,6 +25,7 @@ import struct
 import json
 import time
 import threading
+import array
 
 import cv2
 import numpy as np
@@ -33,6 +34,14 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
+
+
+def _as_uint8_array(frame):
+    """Image.data must get an array.array('B'): assigning bytes/list makes the rclpy
+    setter validate every byte in Python (~55 ms per 640x480 frame vs <1 ms)."""
+    buf = array.array('B')
+    buf.frombytes(np.ascontiguousarray(frame).tobytes())
+    return buf
 
 
 class CameraROS2Receiver(Node):
@@ -252,7 +261,7 @@ class CameraROS2Receiver(Node):
             msg.is_bigendian = 0
             msg.step = msg.width
 
-            msg.data = frame.tobytes()
+            msg.data = _as_uint8_array(frame)
 
         elif frame.ndim == 3 and frame.shape[2] == 3:
 
@@ -263,9 +272,7 @@ class CameraROS2Receiver(Node):
             msg.is_bigendian = 0
             msg.step = msg.width * 3
 
-            msg.data = np.ascontiguousarray(
-                frame
-            ).tobytes()
+            msg.data = _as_uint8_array(frame)
 
         else:
 

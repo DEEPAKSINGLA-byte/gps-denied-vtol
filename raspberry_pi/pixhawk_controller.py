@@ -103,6 +103,14 @@ class PixhawkVehicle:
 
     STALE_AFTER_S = 1.0  # navigation messages older than this are treated as missing
 
+    # Messages the ground station's state estimate is built from. They are requested at
+    # FAST_RATE_HZ via SET_MESSAGE_INTERVAL (the legacy REQUEST_DATA_STREAM groups only
+    # give 10 Hz, i.e. up to 100 ms of extra age), and their arrival sets nav_data_event
+    # so telemetry can be forwarded the moment it is fresh instead of on a fixed timer.
+    NAV_MESSAGES = ("ATTITUDE", "LOCAL_POSITION_NED", "OPTICAL_FLOW", "RAW_IMU",
+                    "DISTANCE_SENSOR")
+    FAST_RATE_HZ = 30.0
+
     def __init__(
         self,
         connection_str: Optional[str] = None,
@@ -133,6 +141,12 @@ class PixhawkVehicle:
         self._raw_messages: Dict[str, Any] = {}
         self._msg_times: Dict[str, float] = {}   # monotonic receive time per message type
         self._recent_statustexts: List[str] = []
+        # Per-command COMMAND_ACK cache: the periodic SET_MESSAGE_INTERVAL requests are
+        # ACKed too, and with a single "last ACK" slot they could overwrite an ARM ACK.
+        self._acks: Dict[int, Any] = {}
+        # Set by the telemetry thread whenever a NAV_MESSAGES message arrives.
+        self.nav_data_event = threading.Event()
+        self.fast_rate_hz = self.FAST_RATE_HZ   # 0 disables the per-message rate requests
 
         # Background thread
         self._stop_telemetry_event = threading.Event()
@@ -276,6 +290,26 @@ class PixhawkVehicle:
                     )
                 except Exception as e:
                     logger.debug("Failed requesting stream %s on comp %s: %s", s, comp, e)
+        # Must come AFTER the stream requests: ArduPilot resets per-message intervals of a
+        # stream group whenever REQUEST_DATA_STREAM is (re)applied to that group.
+        self.request_fast_messages()
+
+    def request_fast_messages(self):
+        """Ask the autopilot to send NAV_MESSAGES at fast_rate_hz (MAV_CMD_SET_MESSAGE_INTERVAL)."""
+        if not self.master or not self.fast_rate_hz or self.fast_rate_hz <= 0:
+            return
+        interval_us = int(1e6 / self.fast_rate_hz)
+        for name in self.NAV_MESSAGES:
+            msg_id = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{name}", None)
+            if msg_id is None:
+                continue
+            try:
+                self.master.mav.command_long_send(
+                    self.target_system, self.target_component,
+                    mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, 0,
+                    msg_id, interval_us, 0, 0, 0, 0, 0)
+            except Exception as e:
+                logger.debug("Failed setting interval for %s: %s", name, e)
 
     def start_telemetry_thread(self):
         """
@@ -341,11 +375,15 @@ class PixhawkVehicle:
                         if not foreign_hb:
                             self._raw_messages[mtype] = msg
                             self._msg_times[mtype] = time.monotonic()
+                        if mtype == "COMMAND_ACK":
+                            self._acks[getattr(msg, "command", -1)] = msg
                         if mtype == "STATUSTEXT":
                             text = getattr(msg, "text", "")
                             self._recent_statustexts.append(text)
                             if len(self._recent_statustexts) > 20:
                                 self._recent_statustexts.pop(0)
+                    if mtype in self.NAV_MESSAGES:
+                        self.nav_data_event.set()
 
                     # Forward raw buffer to callback if registered
                     if self.raw_packet_callback:
@@ -388,16 +426,17 @@ class PixhawkVehicle:
         self.request_data_streams(rate_hz=10)
         return True
 
-    def _last_ack(self):
+    def _last_ack(self, command):
+        """Latest COMMAND_ACK received for ``command`` (None if none yet)."""
         with self._telemetry_lock:
-            return self._raw_messages.get("COMMAND_ACK")
+            return self._acks.get(command)
 
     def _new_ack(self, prev, command):
         """COMMAND_ACK for ``command`` received since ``prev`` (from the telemetry thread's
-        cache). Never call master.recv_match() outside the telemetry thread: two threads
-        reading the same port race and the ACK is swallowed by the other reader."""
-        ack = self._last_ack()
-        if ack is not None and ack is not prev and ack.command == command:
+        per-command cache). Never call master.recv_match() outside the telemetry thread: two
+        threads reading the same port race and the ACK is swallowed by the other reader."""
+        ack = self._last_ack(command)
+        if ack is not None and ack is not prev:
             return ack
         return None
 
@@ -466,7 +505,7 @@ class PixhawkVehicle:
         with self._telemetry_lock:
             self._recent_statustexts.clear()
 
-        prev_ack = self._last_ack()
+        prev_ack = self._last_ack(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM)
         # Send command MAV_CMD_COMPONENT_ARM_DISARM (param1=1 to arm)
         self.master.mav.command_long_send(
             self.target_system,
@@ -526,7 +565,7 @@ class PixhawkVehicle:
         force_param = 21196 if force else 0
         logger.info("Sending DISARM command (force=%s)...", force)
 
-        prev_ack = self._last_ack()
+        prev_ack = self._last_ack(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM)
         # Send command MAV_CMD_COMPONENT_ARM_DISARM (param1=0 to disarm)
         self.master.mav.command_long_send(
             self.target_system,
@@ -639,7 +678,7 @@ class PixhawkVehicle:
             return False, "Vehicle must be armed before takeoff"
 
         logger.info("Sending TAKEOFF command to %.1f meters...", altitude_m)
-        prev_ack = self._last_ack()
+        prev_ack = self._last_ack(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF)
         self.master.mav.command_long_send(
             self.target_system,
             self.target_component,
@@ -821,8 +860,20 @@ class PixhawkVehicle:
         if flow:
             vel_x = vel_y = None
             if hasattr(flow, "flow_comp_m_x"):
-                vel_x, vel_y = flow.flow_comp_m_x, flow.flow_comp_m_y
-                gdist = getattr(flow, "ground_distance", 0.0)
+                gdist = getattr(flow, "ground_distance", 0.0) or 0.0
+                if self.autopilot_type == "ArduPilot":
+                    # ArduPilot does NOT follow the spec here: flow_comp_m_x/y are the
+                    # gyro-compensated angular rates (flowRate - bodyRate) in rad/s, each a
+                    # rotation ABOUT that axis, and ground_distance is the EKF HAGL (0 when
+                    # unknown, e.g. indoors without an EKF origin). Convert with the EKF3
+                    # model (AP_NavEKF3_OptFlowFusion: comp_x = vy/h, comp_y = -vx/h, FRD).
+                    h = gdist if gdist > 0 else (dist.current_distance / 100.0 if dist else 0.0)
+                    if h > 0:
+                        gdist = h
+                        vel_x = -flow.flow_comp_m_y * h
+                        vel_y = flow.flow_comp_m_x * h
+                else:
+                    vel_x, vel_y = flow.flow_comp_m_x, flow.flow_comp_m_y   # spec: m/s
             else:
                 dt_us = getattr(flow, "integration_time_us", 0)
                 gdist = getattr(flow, "distance", 0.0)

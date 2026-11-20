@@ -3,8 +3,11 @@
 live_segmentation.py - Ultra-Low-Latency Live Segmentation Receiver on Ground Laptop
 ====================================================================================
 Receives live RGB camera frames streamed from the Raspberry Pi over the network,
-executes real-time segmentation on the laptop GPU (NVIDIA RTX 4060 via CUDA),
-and outputs annotated frames, masks, and detection metadata with live GUI display.
+executes real-time YOLO + SAM segmentation on the laptop GPU (CUDA), and outputs
+annotated frames, masks, and detection metadata with live GUI display.
+
+YOLO detects and classifies; SAM 2.1 is prompted with YOLO's boxes to produce sharper
+masks. Labels in the overlay end in [S] (SAM-refined mask) or [Y] (YOLO fallback).
 
 Zero-Lag Architecture:
   * Threaded Non-Blocking Socket Reader drains the network instantly.
@@ -14,7 +17,7 @@ Zero-Lag Architecture:
 
 GUI Windows:
   1. "Raw Camera Feed"          - Pure camera video (NO segmentation, NO detection).
-  2. "Live Segmentation Stream" - Annotated camera stream with YOLOv8 masks & boxes.
+  2. "Live Segmentation Stream" - Annotated camera stream with YOLO + SAM masks & boxes.
   3. "Mask Overlay"             - High-contrast isolated segmentation masks.
 
 Usage Examples:
@@ -32,6 +35,13 @@ Usage Examples:
 
   # Save annotated frames to output directory:
   python3 live_segmentation.py --save-dir ./segmentation_results
+
+  # Faster SAM (768 px input, ~2x faster), or SAM only every 2nd frame:
+  python3 live_segmentation.py --sam-imgsz 768
+  python3 live_segmentation.py --sam-every-n 2
+
+  # Plain YOLO masks (no SAM), e.g. for A/B comparison:
+  python3 live_segmentation.py --sam-model none
 """
 
 import sys
@@ -51,7 +61,7 @@ except ImportError as e:
     sys.exit(1)
 
 from camera_receiver import read_frame
-from segmentation_pipeline import SegmentationEngine
+from segmentation_pipeline import DEFAULT_SAM_MODEL, SegmentationEngine
 
 DEFAULT_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yolov8n-seg.pt")
 
@@ -102,7 +112,8 @@ class LatestFrameReader:
         self.running = False
 
 
-def draw_hud(frame: np.ndarray, fps: float, infer_ms: float, transit_ms: float, num_objects: int, num_masks: int, dropped: int = 0) -> np.ndarray:
+def draw_hud(frame: np.ndarray, fps: float, infer_ms: float, transit_ms: float, num_objects: int, num_masks: int,
+             dropped: int = 0, sam_refined: Optional[int] = None) -> np.ndarray:
     """Draw a clean, semi-transparent telemetry HUD banner on top of the frame."""
     h, w = frame.shape[:2]
     annotated = frame.copy()
@@ -118,6 +129,8 @@ def draw_hud(frame: np.ndarray, fps: float, infer_ms: float, transit_ms: float, 
         f"FPS: {fps:>4.1f} | GPU: {infer_ms:>4.1f}ms | "
         f"Transit: {transit_ms:>4.1f}ms | Obj: {num_objects} | Masks: {num_masks}"
     )
+    if sam_refined is not None:
+        hud_text += f" | SAM: {sam_refined}/{num_objects}"
     cv2.putText(annotated, hud_text, (12, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (0, 255, 128), 2, cv2.LINE_AA)
 
     # Bottom exit hint bar
@@ -130,7 +143,8 @@ def draw_hud(frame: np.ndarray, fps: float, infer_ms: float, transit_ms: float, 
     return annotated
 
 
-def verify_pipeline(port: int = 5000, model_path: str = DEFAULT_MODEL_PATH, timeout: float = 15.0, gui: bool = True) -> bool:
+def verify_pipeline(port: int = 5000, model_path: str = DEFAULT_MODEL_PATH, timeout: float = 15.0, gui: bool = True,
+                    sam_model: Optional[str] = DEFAULT_SAM_MODEL, sam_imgsz: int = 1024) -> bool:
     print("=" * 70)
     print(" LIVE SEGMENTATION PIPELINE VERIFICATION")
     print("=" * 70)
@@ -138,7 +152,8 @@ def verify_pipeline(port: int = 5000, model_path: str = DEFAULT_MODEL_PATH, time
     # 1. Initialize Engine on GPU
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     print(f"Accelerating on: {device.upper()} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
-    engine = SegmentationEngine(model_path=model_path, device=device)
+    engine = SegmentationEngine(model_path=model_path, device=device,
+                                sam_model=sam_model, sam_imgsz=sam_imgsz)
 
     # 2. Listen for frame from Raspberry Pi
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -189,12 +204,14 @@ def verify_pipeline(port: int = 5000, model_path: str = DEFAULT_MODEL_PATH, time
     print("=" * 70)
     print(f"Input Matrix Shape:      {out['shape']} (uint8)")
     print(f"Network Transit Latency: {latency_ms:.2f} ms")
-    print(f"GPU Inference Time:      {out['inference_time_ms']:.2f} ms on {device.upper()}")
+    print(f"GPU Inference Time:      {out['inference_time_ms']:.2f} ms on {device.upper()} "
+          f"(YOLO {out['yolo_time_ms']:.1f} ms + SAM {out['sam_time_ms']:.1f} ms)")
     print(f"Objects Detected:        {out['num_objects']}")
-    print(f"Segmentation Masks:      {out['num_masks']}")
+    print(f"Segmentation Masks:      {out['num_masks']} ({out['num_sam_refined']} SAM-refined)")
 
     for i, obj in enumerate(out["detections"]):
-        print(f"  * Object {i+1}: {obj['class_name']} (conf: {obj['confidence']:.2f}, bbox: {obj['bbox_xyxy']})")
+        print(f"  * Object {i+1}: {obj['class_name']} (conf: {obj['confidence']:.2f}, "
+              f"mask: {obj['mask_source']}, bbox: {obj['bbox_xyxy']})")
 
     print(f"Raw Image Saved:         {raw_path}")
     print(f"Annotated Image Saved:   {annotated_path}")
@@ -211,7 +228,8 @@ def verify_pipeline(port: int = 5000, model_path: str = DEFAULT_MODEL_PATH, time
             infer_ms=out["inference_time_ms"],
             transit_ms=latency_ms,
             num_objects=out["num_objects"],
-            num_masks=out["num_masks"]
+            num_masks=out["num_masks"],
+            sam_refined=out["num_sam_refined"] if engine.seg.sam_enabled else None,
         )
         cv2.namedWindow("Raw Camera Feed (No AI)", cv2.WINDOW_NORMAL)
         cv2.namedWindow("Verified Segmentation Result", cv2.WINDOW_NORMAL)
@@ -233,7 +251,10 @@ def run_live_stream(
     model_path: str = DEFAULT_MODEL_PATH,
     gui: bool = True,
     camera_only: bool = False,
-    save_dir: Optional[str] = None
+    save_dir: Optional[str] = None,
+    sam_model: Optional[str] = DEFAULT_SAM_MODEL,
+    sam_imgsz: int = 1024,
+    sam_every_n: int = 1,
 ):
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     print("=" * 70)
@@ -245,6 +266,7 @@ def run_live_stream(
     if not camera_only:
         print(f"Device:           {device.upper()} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
         print(f"Model Path:       {model_path}")
+        print(f"SAM Refinement:   {sam_model or 'OFF'} (imgsz={sam_imgsz}, every {sam_every_n} frame(s))")
     print(f"GUI Display:      {'ENABLED' if gui else 'DISABLED'}")
     if camera_only:
         print("Mode:             RAW CAMERA ONLY (Segmentation & Detection skipped)")
@@ -254,7 +276,9 @@ def run_live_stream(
 
     engine = None
     if not camera_only:
-        engine = SegmentationEngine(model_path=model_path, device=device)
+        engine = SegmentationEngine(model_path=model_path, device=device,
+                                    sam_model=sam_model, sam_imgsz=sam_imgsz)
+    sam_every_n = max(1, int(sam_every_n))
 
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -332,7 +356,7 @@ def run_live_stream(
                         break
 
             else:
-                out = engine.process_matrix(frame)
+                out = engine.process_matrix(frame, refine=(frame_count - 1) % sam_every_n == 0)
                 infer_ms = out["inference_time_ms"]
                 n_obj = out["num_objects"]
                 n_masks = out["num_masks"]
@@ -340,7 +364,8 @@ def run_live_stream(
                 sys.stdout.write(
                     f"\r[SEGMENTING] Frame {frame_count:>4} | Shape: {frame.shape} | "
                     f"GPU Infer: {infer_ms:>4.1f}ms | Pipeline: {overall_fps:>4.1f} FPS | "
-                    f"Transit: {latency:>4.1f}ms | Objects: {n_obj:>2} | Dropped Stale: {dropped}"
+                    f"Transit: {latency:>4.1f}ms | Objects: {n_obj:>2} | SAM: {out['num_sam_refined']:>2} | "
+                    f"Dropped Stale: {dropped}"
                 )
                 sys.stdout.flush()
 
@@ -360,7 +385,8 @@ def run_live_stream(
                         transit_ms=latency,
                         num_objects=n_obj,
                         num_masks=n_masks,
-                        dropped=dropped
+                        dropped=dropped,
+                        sam_refined=out["num_sam_refined"] if engine.seg.sam_enabled else None,
                     )
                     cv2.imshow("Live Segmentation Stream", display_frame)
 
@@ -391,13 +417,18 @@ def main():
     parser.add_argument("--camera-only", action="store_true", help="Display raw camera GUI ONLY (skips segmentation model & detection)")
     parser.add_argument("--no-gui", action="store_true", help="Disable GUI display windows (headless mode)")
     parser.add_argument("--save-dir", type=str, default=None, help="Directory to save outputs")
+    parser.add_argument("--sam-model", type=str, default=DEFAULT_SAM_MODEL,
+                        help=f"SAM weights for mask refinement, or 'none' for YOLO only (default: {DEFAULT_SAM_MODEL})")
+    parser.add_argument("--sam-imgsz", type=int, default=1024, help="SAM input size: 1024 = best, 768 = ~2x faster")
+    parser.add_argument("--sam-every-n", type=int, default=1, help="Run SAM on every Nth frame (default: 1)")
 
     args = parser.parse_args()
     gui_enabled = not args.no_gui
 
     # Default to continuous streaming with GUI unless --verify is explicitly requested
     if args.verify:
-        ok = verify_pipeline(port=args.port, model_path=args.model, gui=gui_enabled)
+        ok = verify_pipeline(port=args.port, model_path=args.model, gui=gui_enabled,
+                             sam_model=args.sam_model, sam_imgsz=args.sam_imgsz)
         sys.exit(0 if ok else 1)
     else:
         run_live_stream(
@@ -405,7 +436,10 @@ def main():
             model_path=args.model,
             gui=gui_enabled,
             camera_only=args.camera_only,
-            save_dir=args.save_dir
+            save_dir=args.save_dir,
+            sam_model=args.sam_model,
+            sam_imgsz=args.sam_imgsz,
+            sam_every_n=args.sam_every_n,
         )
 
 

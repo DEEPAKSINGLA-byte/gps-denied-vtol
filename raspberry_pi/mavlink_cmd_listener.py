@@ -51,12 +51,16 @@ class MavlinkCmdListener:
         self.lock = threading.Lock()
         self.last_cmd = None
         self.last_cmd_time = 0.0
+        # Set on every received command so run() forwards it immediately instead of on
+        # its next 20 Hz tick (saves up to 50 ms). run() stays the ONLY thread writing
+        # setpoints to the Pixhawk, so serial writes never interleave.
+        self._new_cmd = threading.Event()
 
         # UDP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('0.0.0.0', listen_port))
-        self.sock.setblocking(False)
+        self.sock.settimeout(0.5)   # blocking recv: wakes the instant a packet lands
 
         self._stop_event = threading.Event()
         self._udp_thread = threading.Thread(
@@ -90,8 +94,7 @@ class MavlinkCmdListener:
         while not self._stop_event.is_set():
             try:
                 data, _ = self.sock.recvfrom(65535)
-            except BlockingIOError:
-                time.sleep(0.002)
+            except socket.timeout:
                 continue
             except Exception:
                 time.sleep(0.01)
@@ -105,6 +108,7 @@ class MavlinkCmdListener:
             with self.lock:
                 self.last_cmd = cmd
                 self.last_cmd_time = time.time()
+            self._new_cmd.set()
 
     def _send_velocity_setpoint(self, vx: float, vy: float, vz: float, yawspeed: float):
         """Send a velocity setpoint to ArduPilot (GUIDED) via SET_POSITION_TARGET_LOCAL_NED.
@@ -174,6 +178,7 @@ class MavlinkCmdListener:
 
     def stop(self):
         self._stop_event.set()
+        self._new_cmd.set()
 
     def run(self):
         print(f'[LISTENER] Listening for velocity commands on UDP 0.0.0.0:{self.listen_port}')
@@ -210,7 +215,9 @@ class MavlinkCmdListener:
                         yawspeed = float(cmd.get('yawspeed', 0.0))
                         self._send_velocity_setpoint(vx, vy, vz, yawspeed)
 
-                time.sleep(0.05)  # 20 Hz control loop
+                # 20 Hz keepalive, but wake immediately when a new command arrives
+                self._new_cmd.wait(0.05)
+                self._new_cmd.clear()
 
         except KeyboardInterrupt:
             pass

@@ -19,6 +19,19 @@ Usage Examples:
   # Stream JSON only or MAVLink only
   python3 telemetry_streamer.py --target-ip 10.184.3.231 --mode json
   python3 telemetry_streamer.py --target-ip 10.184.3.231 --mode mavlink
+
+Latency design (JSON stream, the one the ROS bridge uses):
+  * Event-driven: a packet goes out as soon as fresh navigation data (ATTITUDE,
+    LOCAL_POSITION_NED, OPTICAL_FLOW, RAW_IMU, DISTANCE_SENSOR) arrives from the Pixhawk,
+    after a 3 ms coalescing window so one autopilot burst becomes one packet. --rate is
+    the MAX rate; a keepalive still goes out every 200 ms if no nav data arrives.
+  * The Pixhawk is asked for those messages at --fast-rate Hz (default 30) instead of the
+    10 Hz REQUEST_DATA_STREAM groups.
+  * Every packet fits in ONE UDP datagram (<= 1400 B). The full snapshot is ~1.6-1.8 kB,
+    which IP-fragments on Wi-Fi (lose either fragment -> lose the packet). Fields no
+    ground consumer needs every cycle (global_position, ekf_status, vibration,
+    rc_channels, statustexts) are rotated across packets instead.
+  * DSCP CS6 -> Wi-Fi WMM voice queue (ahead of the camera's bulk traffic).
 """
 
 import sys
@@ -31,6 +44,53 @@ import threading
 from typing import Optional
 from pixhawk_controller import PixhawkVehicle
 from pymavlink import mavutil
+
+# Largest UDP payload that never IP-fragments on a 1500-MTU link is 1472 B; keep margin
+# for VPN/PPPoE-style overheads.
+MAX_DATAGRAM = 1400
+# Bulky fields that no ground consumer reads every cycle: rotated across packets.
+SLOW_KEYS = ("global_position", "ekf_status", "vibration", "rc_channels", "statustexts")
+DSCP_CS6 = 0xC0          # WMM voice access category
+NAV_COALESCE_S = 0.003   # wait for the rest of the autopilot's message burst
+KEEPALIVE_S = 0.2        # send at least this often even without fresh nav data
+
+
+def _dumps(obj) -> bytes:
+    return json.dumps(obj, separators=(",", ":")).encode("utf-8")
+
+
+def pack_telemetry(telem: dict, cursor: int, max_bytes: int = MAX_DATAGRAM):
+    """Encode one telemetry snapshot as a single datagram of at most ``max_bytes``.
+
+    All non-SLOW_KEYS fields are always included. SLOW_KEYS are added round-robin starting
+    at ``cursor`` while they fit, so each one is still delivered every few packets.
+    Returns (payload_bytes, next_cursor).
+    """
+    pkt = {k: v for k, v in telem.items() if k not in SLOW_KEYS}
+    base = _dumps(pkt)
+    if len(base) > max_bytes:          # should not happen; never send a fragmenting packet
+        return base, cursor            # (logged by the caller via size check)
+    size = len(base)
+    n = len(SLOW_KEYS)
+    added = 0
+    for i in range(n):
+        k = SLOW_KEYS[(cursor + i) % n]
+        if k not in telem:
+            added += 1
+            continue
+        val = telem[k]
+        extra = len(_dumps({k: val})) - 1   # '{"k":v}' -> ',"k":v' adds len-1 bytes
+        if size + extra > max_bytes and isinstance(val, list) and len(val) > 1:
+            # e.g. a burst of STATUSTEXTs: send the newest entries that fit
+            while len(val) > 1 and size + extra > max_bytes:
+                val = val[1:]
+                extra = len(_dumps({k: val})) - 1
+        if size + extra > max_bytes:
+            break
+        pkt[k] = val
+        size += extra
+        added += 1
+    return _dumps(pkt), (cursor + max(added, 1)) % n
 
 
 def get_default_gateway_or_client_ip() -> Optional[str]:
@@ -73,6 +133,7 @@ class TelemetryStreamer:
         pixhawk_port: Optional[str] = None,
         pixhawk_baud: int = 115200,
         velocity_port: int = 0,
+        fast_rate_hz: float = PixhawkVehicle.FAST_RATE_HZ,
     ):
         self.target_ip = target_ip
         self.mavlink_port = mavlink_port
@@ -84,9 +145,14 @@ class TelemetryStreamer:
         self.pixhawk_port = pixhawk_port
         self.pixhawk_baud = pixhawk_baud
         self.velocity_port = velocity_port  # >0 enables Nav2 velocity listener (shares this vehicle)
+        self.fast_rate_hz = fast_rate_hz
         self.nav_listener = None
 
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            self.udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, DSCP_CS6)
+        except OSError:
+            pass
         self.running = False
         self.vehicle: Optional[PixhawkVehicle] = None
 
@@ -105,15 +171,19 @@ class TelemetryStreamer:
             print(f"  * MAVLink UDP Port: {self.target_ip}:{self.mavlink_port}")
         if self.stream_mode in ["both", "json"]:
             print(f"  * JSON UDP Port:    {self.target_ip}:{self.json_port}")
-        print(f"Stream Rate:         {self.rate_hz:.1f} Hz")
+        print(f"Stream Rate:         event-driven, max {self.rate_hz:.1f} Hz "
+              f"(Pixhawk nav msgs @ {self.fast_rate_hz:.0f} Hz)")
         print("=" * 68)
 
         # Connect to Pixhawk
         print(f"\n[1/2] Connecting to Pixhawk flight controller...")
         self.vehicle = PixhawkVehicle(
             connection_str=self.pixhawk_port,
-            baud=self.pixhawk_baud
+            baud=self.pixhawk_baud,
+            auto_connect=False,
         )
+        self.vehicle.fast_rate_hz = self.fast_rate_hz   # must be set before connect()
+        self.vehicle.connect()
 
         if not self.vehicle.is_connected:
             print("[ERROR] Could not connect to Pixhawk flight controller.", file=sys.stderr)
@@ -199,21 +269,39 @@ class TelemetryStreamer:
 
     def _json_stream_worker(self):
         """
-        Periodically serialize full sensor snapshot and send as UDP datagram.
+        Send a telemetry snapshot as soon as fresh nav data arrives (event-driven),
+        at most rate_hz, and at least every KEEPALIVE_S.
         """
         json_target = (self.target_ip, self.json_port)
+        nav_event = self.vehicle.nav_data_event
         seq = 0
+        cursor = 0
+        last_send = 0.0
+        warned_size = False
+        min_gap = 0.8 * self.interval   # slack so a source AT the cap rate is never throttled
         while self.running:
+            fresh = nav_event.wait(KEEPALIVE_S)
+            if fresh:
+                time.sleep(NAV_COALESCE_S)          # let the rest of the burst land
+            nav_event.clear()
+            # Rate cap WITHOUT delaying data: sleeping here would hold a fresh burst back
+            # (measured: +15 ms median). Too soon -> skip; the next burst triggers a send.
+            if fresh and time.monotonic() - last_send < min_gap:
+                continue
             try:
                 telem = self.vehicle.get_telemetry()
                 telem["seq"] = seq
-                payload = json.dumps(telem).encode("utf-8")
+                payload, cursor = pack_telemetry(telem, cursor)
+                if len(payload) > MAX_DATAGRAM and not warned_size:
+                    print(f"\n[!] Telemetry packet is {len(payload)} B (> {MAX_DATAGRAM}); "
+                          "it will be IP-fragmented on Wi-Fi")
+                    warned_size = True
                 self.udp_sock.sendto(payload, json_target)
                 self.packets_sent_json += 1
                 seq += 1
-            except Exception as e:
+            except Exception:
                 pass
-            time.sleep(self.interval)
+            last_send = time.monotonic()
 
     def _command_listener_worker(self):
         """
@@ -293,7 +381,13 @@ def main():
     )
     parser.add_argument("--velocity-port", type=int, default=0,
                         help="Enable Nav2 velocity listener on this UDP port (e.g. 14553; 0 = off). Forwards only while armed in GUIDED.")
-    parser.add_argument("--rate", type=float, default=10.0, help="JSON telemetry rate in Hz (default: 10.0)")
+    parser.add_argument("--rate", type=float, default=30.0,
+                        help="MAX JSON telemetry rate in Hz; packets are sent when fresh nav data "
+                             "arrives (default: 30)")
+    parser.add_argument("--fast-rate", type=float, default=PixhawkVehicle.FAST_RATE_HZ,
+                        help="Rate (Hz) requested from the Pixhawk for ATTITUDE, LOCAL_POSITION_NED, "
+                             "OPTICAL_FLOW, RAW_IMU, DISTANCE_SENSOR; 0 = leave autopilot defaults "
+                             f"(default: {PixhawkVehicle.FAST_RATE_HZ:.0f})")
     parser.add_argument("--port", type=str, default=None, help="Pixhawk serial port (default: auto-detect)")
     parser.add_argument("--baud", type=int, default=115200, help="Pixhawk serial baud (default: 115200)")
 
@@ -309,6 +403,7 @@ def main():
         pixhawk_port=args.port,
         pixhawk_baud=args.baud,
         velocity_port=args.velocity_port,
+        fast_rate_hz=args.fast_rate,
     )
     streamer.start()
 

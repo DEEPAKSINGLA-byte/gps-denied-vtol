@@ -3,7 +3,7 @@
 <package format="3">
   <name>quadcopter_perception</name>
   <version>0.0.0</version>
-  <description>YOLOv8 instance segmentation of the drone camera stream (ROS 2)</description>
+  <description>YOLO + SAM instance segmentation of the drone camera stream (ROS 2)</description>
   <maintainer email="reman.airport@gmail.com">remandey</maintainer>
   <license>TODO: License declaration</license>
 
@@ -13,7 +13,8 @@
   <exec_depend>vision_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <!-- ultralytics + torch come from pip: pip install ultralytics -->
+  <!-- ultralytics (>=8.3, for SAM 2.1) + torch come from pip: pip install -U ultralytics.
+       Weights (yolov8n-seg.pt, sam2.1_t.pt) auto-download on first run. -->
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

@@ -6,7 +6,8 @@ Receives parsed JSON Pixhawk telemetry over UDP (port 14551) from the Raspberry
 Pi companion computer and publishes it as standard ROS 2 topics for Nav2:
 
   * nav_msgs/Odometry on /odom
-    - position.x/y: integrated from optical flow XY velocity (dead-reckoning)
+    - position.x/y: integrated from optical flow XY velocity (dead-reckoning), frozen
+      while the IMU reports the vehicle stationary (zero-velocity update, zupt_*)
     - position:     ENU (x=East, y=North, z=Up); NED/FRD inputs are converted here
     - orientation:  from attitude roll/pitch/yaw -> quaternion
     - twist.linear: optical flow vx/vy + baro/rangefinder vertical rate
@@ -23,8 +24,14 @@ rangefinder/baro provide local position hold sufficient for Nav2 costmaps.
 
 UDP JSON schema matches the output of PixhawkVehicle.get_telemetry() in
 pixhawk_controller.py (telemetry_streamer.py on the Pi).
+
+Latency: /odom + TF are published the moment a telemetry packet arrives (blocking
+receive, backlog drained so only the newest packet is used). publish_rate_hz is only the
+FALLBACK rate used while packets are not arriving, so TF stays alive and position holds
+during a Wi-Fi dropout.
 """
 
+import collections
 import json
 import math
 import socket
@@ -83,11 +90,22 @@ class MavlinkToRos2Bridge(Node):
         self.declare_parameter('listen_port', 14551)
         self.declare_parameter('odom_frame', 'odom')
         self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('publish_rate_hz', 10.0)
+        self.declare_parameter('publish_rate_hz', 10.0)   # fallback rate when no packets arrive
         self.declare_parameter('optical_flow_scale', 1.0)
         self.declare_parameter('z_source', 'auto')  # auto | rangefinder | flow | ekf | barometer
         self.declare_parameter('min_flow_quality', 20)  # ignore flow below this (0-255)
         self.declare_parameter('home_alt_m', 0.0)  # baro altitude at takeoff (m, above sea level)
+        # Zero-velocity update: when the IMU says the vehicle is not moving, flow velocity is
+        # forced to 0 and dead-reckoned position is frozen, so sensor noise/bias cannot
+        # integrate into drift. Stationary (bench log): |a| std ~3 mg, |w| ~1 deg/s; hovering
+        # vibration is >> these, so it never triggers in flight.
+        self.declare_parameter('zupt_enable', True)
+        self.declare_parameter('zupt_window_s', 1.0)
+        self.declare_parameter('zupt_accel_std_mg', 15.0)
+        self.declare_parameter('zupt_gyro_dps', 4.0)
+        # Telemetry older than this is not dead-reckoned: on a Wi-Fi dropout the last flow
+        # velocity must not keep being integrated (position holds until data returns).
+        self.declare_parameter('telem_timeout_s', 0.5)
 
         self.listen_port = int(self.get_parameter('listen_port').value)
         self.odom_frame = str(self.get_parameter('odom_frame').value)
@@ -97,6 +115,13 @@ class MavlinkToRos2Bridge(Node):
         self.z_source = str(self.get_parameter('z_source').value)
         self.min_flow_q = int(self.get_parameter('min_flow_quality').value)
         self.home_alt_m = float(self.get_parameter('home_alt_m').value)
+        self.zupt_enable = bool(self.get_parameter('zupt_enable').value)
+        self.zupt_window_s = float(self.get_parameter('zupt_window_s').value)
+        self.zupt_accel_std = float(self.get_parameter('zupt_accel_std_mg').value)
+        self.zupt_gyro = float(self.get_parameter('zupt_gyro_dps').value)
+        self.telem_timeout_s = float(self.get_parameter('telem_timeout_s').value)
+        self._imu_hist = collections.deque()   # (monotonic, |accel| mg, |gyro| dps)
+        self.stationary = False
 
         # ---------------- State ----------------
         self.lock = threading.Lock()
@@ -133,6 +158,7 @@ class MavlinkToRos2Bridge(Node):
             Float32, '/metrics/telemetry/latency_excess_ms', 10)
 
         self.flow_q_pub = self.create_publisher(Float32, '/metrics/flow/quality', 10)
+        self.still_pub = self.create_publisher(Float32, '/metrics/odom/stationary', 10)
         self.flow_h_pub = self.create_publisher(Float32, '/metrics/flow/ground_distance_m', 10)
 
         # ---------------- TF ----------------
@@ -142,7 +168,7 @@ class MavlinkToRos2Bridge(Node):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('0.0.0.0', self.listen_port))
-        self.sock.setblocking(False)
+        self.sock.settimeout(0.2)   # blocking recv: wakes the instant a packet lands
 
         self.get_logger().info(
             f'mavlink_to_ros2_bridge listening on UDP 0.0.0.0:{self.listen_port}'
@@ -159,19 +185,35 @@ class MavlinkToRos2Bridge(Node):
         )
         self._udp_thread.start()
 
-        # Publish timer
-        period = 1.0 / max(self.publish_rate, 1.0)
-        self.timer = self.create_timer(period, self._publish_timer_callback)
+        # Publishing happens on packet arrival (receive thread). The timer only covers
+        # gaps: it publishes when nothing was published for a full period.
+        self._pub_lock = threading.Lock()
+        self._last_pub = 0.0
+        self._period = 1.0 / max(self.publish_rate, 1.0)
+        self.timer = self.create_timer(self._period, self._publish_timer_callback)
 
     # ------------------------------------------------------------
     # UDP receive
     # ------------------------------------------------------------
+    def _latest_datagram(self):
+        """Block for one datagram, then drain any backlog and return the newest, so a
+        Wi-Fi hiccup never makes us replay stale telemetry."""
+        data, _ = self.sock.recvfrom(65535)
+        self.sock.setblocking(False)
+        try:
+            while True:
+                data, _ = self.sock.recvfrom(65535)
+        except (BlockingIOError, InterruptedError):
+            pass
+        finally:
+            self.sock.settimeout(0.2)
+        return data
+
     def _udp_receive_loop(self):
         while not self._stop_event.is_set():
             try:
-                data, _ = self.sock.recvfrom(65535)
-            except BlockingIOError:
-                time.sleep(0.002)
+                data = self._latest_datagram()
+            except socket.timeout:
                 continue
             except Exception:
                 time.sleep(0.01)
@@ -194,6 +236,36 @@ class MavlinkToRos2Bridge(Node):
             with self.lock:
                 self.latest_telem = telem
                 self.last_telem_time = time.time()
+                self._update_stationary(telem)
+
+            try:
+                self._publish()                 # event-driven: no timer wait
+            except Exception as e:
+                self.get_logger().warn(f'odom publish failed: {e}', throttle_duration_sec=5.0)
+
+    def _update_stationary(self, telem: dict):
+        """Track IMU stillness over a sliding window (call with self.lock held)."""
+        imu = telem.get('imu') if isinstance(telem, dict) else None
+        now = time.monotonic()
+        if imu:
+            try:
+                a = math.sqrt(sum(float(imu.get(f'accel_{k}_mg') or 0.0) ** 2 for k in 'xyz'))
+                g = math.sqrt(sum(float(imu.get(f'gyro_{k}_dps') or 0.0) ** 2 for k in 'xyz'))
+                self._imu_hist.append((now, a, g))
+            except (TypeError, ValueError):
+                pass
+        while self._imu_hist and now - self._imu_hist[0][0] > self.zupt_window_s:
+            self._imu_hist.popleft()
+        h = self._imu_hist
+        # Need a reasonably full window (>= 5 samples spanning most of it) to decide.
+        if not self.zupt_enable or len(h) < 5 or h[-1][0] - h[0][0] < 0.6 * self.zupt_window_s:
+            self.stationary = False
+            return
+        accs = [x[1] for x in h]
+        mean_a = sum(accs) / len(accs)
+        std_a = math.sqrt(sum((x - mean_a) ** 2 for x in accs) / len(accs))
+        mean_g = sum(x[2] for x in h) / len(h)
+        self.stationary = std_a < self.zupt_accel_std and mean_g < self.zupt_gyro
 
     # ------------------------------------------------------------
     # Telemetry parsing helpers
@@ -221,7 +293,7 @@ class MavlinkToRos2Bridge(Node):
         # autopilot (or use of_scale = -1 for a pure x flip).
         return float(vx) * self.of_scale, -float(vy) * self.of_scale
 
-    def _integrate_position(self, telem: dict, now: float):
+    def _integrate_position(self, telem: dict, now: float, hold: bool = False):
         """Integrate optical flow velocity into world-frame X/Y position."""
         att = telem.get('attitude') or {}
         flow = telem.get('optical_flow') or {}
@@ -241,6 +313,8 @@ class MavlinkToRos2Bridge(Node):
         # Otherwise dead-reckon from optical flow velocity
         # Body (FLU) velocity rotated into the ENU world frame by the ROS yaw
         vx_body, vy_body = self._flow_velocity(flow)
+        if hold:  # stationary (ZUPT) or telemetry stale
+            vx_body = vy_body = 0.0
 
         yaw = self.last_yaw
         c = math.cos(yaw)
@@ -298,13 +372,26 @@ class MavlinkToRos2Bridge(Node):
     # Publish timer
     # ------------------------------------------------------------
     def _publish_timer_callback(self):
+        """Fallback only: publish if the receive thread has not for a full period."""
+        if time.monotonic() - self._last_pub >= self._period:
+            self._publish()
+
+    def _publish(self):
+        # Serialised: called from both the receive thread and the fallback timer.
+        with self._pub_lock:
+            self._publish_locked()
+            self._last_pub = time.monotonic()
+
+    def _publish_locked(self):
         with self.lock:
             telem = self.latest_telem
             if telem is None:
                 return
             now = time.time()
+            stale = now - (self.last_telem_time or 0.0) > self.telem_timeout_s
+            hold = self.stationary or stale
 
-        self._integrate_position(telem, now)
+        self._integrate_position(telem, now, hold)
 
         with self.lock:
             pos_x = self.pos_x
@@ -327,6 +414,9 @@ class MavlinkToRos2Bridge(Node):
 
             # Twist: linear from optical flow + vertical rate, angular from gyro
             vx_body, vy_body = self._flow_velocity(flow)
+            stationary = self.stationary
+            if hold:
+                vx_body = vy_body = 0.0
 
             # Vertical velocity: prefer EKF local position vz, else baro rate (approx 0)
             vz = 0.0
@@ -410,6 +500,7 @@ class MavlinkToRos2Bridge(Node):
 
         fl = telem.get('optical_flow') or {}
         self.flow_q_pub.publish(Float32(data=float(fl.get('quality') or 0)))
+        self.still_pub.publish(Float32(data=1.0 if stationary else 0.0))
         self.flow_h_pub.publish(Float32(data=float(fl.get('ground_distance_m') or 0.0)))
 
     def destroy_node(self):

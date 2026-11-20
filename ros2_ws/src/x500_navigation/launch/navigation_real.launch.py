@@ -33,6 +33,16 @@ def generate_launch_description():
         'seg_model', default_value='yolov8n-seg.pt',
         description='Segmentation weights (path, or a name Ultralytics downloads)'
     )
+    # 768 px measured on the real drone: 36 ms inference / 46 ms capture->result vs
+    # 50 / 60 ms at 1024, with near-identical masks. Use 1024 for the sharpest outlines.
+    declare_seg_sam_imgsz = DeclareLaunchArgument(
+        'seg_sam_imgsz', default_value='768',
+        description='SAM input size for segmentation (768 = lower latency, 1024 = sharpest)'
+    )
+    declare_seg_sam_model = DeclareLaunchArgument(
+        'seg_sam_model', default_value='sam2.1_t.pt',
+        description="SAM weights for segmentation; 'none' = YOLO masks only"
+    )
     declare_rviz = DeclareLaunchArgument('rviz', default_value='true',
                                          description='Open RViz2 with the validation layout')
     declare_metrics = DeclareLaunchArgument('metrics', default_value='true',
@@ -149,7 +159,9 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(
             get_package_share_directory('quadcopter_perception'),
             'launch', 'segmentation.launch.py')),
-        launch_arguments={'model': LaunchConfiguration('seg_model')}.items(),
+        launch_arguments={'model': LaunchConfiguration('seg_model'),
+                          'sam_imgsz': LaunchConfiguration('seg_sam_imgsz'),
+                          'sam_model': LaunchConfiguration('seg_sam_model')}.items(),
         condition=IfCondition(PythonExpression(
             ["'", camera, "' == 'true' and '", segmentation, "' == 'true'"])),
     )
@@ -172,6 +184,8 @@ def generate_launch_description():
         declare_camera,
         declare_segmentation,
         declare_seg_model,
+        declare_seg_sam_imgsz,
+        declare_seg_sam_model,
         declare_rviz,
         declare_metrics,
         declare_use_sim_time,

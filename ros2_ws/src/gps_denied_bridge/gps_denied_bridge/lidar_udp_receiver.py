@@ -12,6 +12,10 @@ them to LaserScan messages for Nav2 costmap consumption.
 import math
 import socket
 import json
+import struct
+import threading
+
+import numpy as np
 
 import rclpy
 from rclpy.node import Node
@@ -21,6 +25,26 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Float32
 
 from gps_denied_bridge.metrics_utils import LatencyTracker
+
+LIDAR_MAGIC = b'YDL1'
+_HDR = struct.Struct('<4sdH')
+
+
+def decode_scan(data):
+    """Return (timestamp|None, ranges_m ndarray, intensities ndarray) for either the
+    compact binary format (lidar_udp_streamer.py default) or the legacy JSON one."""
+    if data[:4] == LIDAR_MAGIC:
+        _, ts, n = _HDR.unpack_from(data)
+        o = _HDR.size
+        ranges = np.frombuffer(data, '<u2', n, o).astype(np.float32) / 1000.0
+        inten = np.frombuffer(data, np.uint8, n, o + 2 * n).astype(np.float32)
+        return ts, ranges, inten
+    payload = json.loads(data.decode())
+    ranges = np.asarray(payload.get('ranges', [0.0] * 360), np.float32)
+    inten = np.asarray(payload.get('intensities', [0] * len(ranges)), np.float32)
+    if len(inten) != len(ranges):
+        inten = np.zeros_like(ranges)
+    return payload.get('timestamp'), ranges, inten
 
 
 class LidarUDPReceiverNode(Node):
@@ -61,69 +85,86 @@ class LidarUDPReceiverNode(Node):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('0.0.0.0', self.listen_port))
-        self.sock.setblocking(False)
+        self.sock.settimeout(0.5)
+
+        # Precomputed raw-bin -> ROS-order index map (see _to_ros_order).
+        i = np.arange(360)
+        self._src = ((180 - i - self.ang_off) if self.cw else (i - 180 - self.ang_off)) % 360
 
         self.get_logger().info(
             f'Listening for LiDAR UDP packets on port {self.listen_port} -> /{self.scan_topic}'
         )
-        self.timer = self.create_timer(0.01, self.poll_udp)
+        # Blocking receive thread: publishes the instant a scan arrives instead of
+        # waiting for the next 10 ms timer tick of a polling loop.
+        self.running = True
+        self.rx_thread = threading.Thread(target=self._rx_loop, daemon=True)
+        self.rx_thread.start()
 
     def _to_ros_order(self, ranges, intensities):
         """Reorder 1-degree raw bins (index = sensor angle) to ROS order: index i is
         angle -pi + i deg, counter-clockwise positive, 0 rad = +x of the laser frame."""
-        n = len(ranges)
-        if n != 360:
+        if len(ranges) != 360:
             return ranges, intensities
-        if self.cw:
-            src = [(180 - i - self.ang_off) % 360 for i in range(360)]
-        else:
-            src = [(i - 180 - self.ang_off) % 360 for i in range(360)]
-        inten = intensities if len(intensities) == 360 else [0] * 360
-        return [ranges[k] for k in src], [inten[k] for k in src]
+        return ranges[self._src], intensities[self._src]
 
-    def poll_udp(self):
-        while True:
-            try:
+    def _latest_datagram(self):
+        """Block for one datagram, then drain any backlog so only the newest scan is
+        used; stale scans queued during a Wi-Fi hiccup are dropped, not replayed."""
+        data, _ = self.sock.recvfrom(65535)
+        self.sock.setblocking(False)
+        try:
+            while True:
                 data, _ = self.sock.recvfrom(65535)
-            except BlockingIOError:
-                break
-            except Exception as e:
-                self.get_logger().warn(f'UDP recv error: {e}')
-                break
+        except (BlockingIOError, InterruptedError):
+            pass
+        finally:
+            self.sock.settimeout(0.5)
+        return data
 
+    def _rx_loop(self):
+        while self.running and rclpy.ok():
             try:
-                payload = json.loads(data.decode())
+                data = self._latest_datagram()
+            except socket.timeout:
+                continue
+            except OSError as e:
+                if self.running:
+                    self.get_logger().warn(f'UDP recv error: {e}')
+                continue
+            try:
+                self._handle(data)
             except Exception as e:
                 self.get_logger().warn(f'Error parsing UDP scan packet: {e}')
-                break
 
-            scan_msg = LaserScan()
-            scan_msg.header.stamp = self.get_clock().now().to_msg()
-            scan_msg.header.frame_id = self.frame_id
-            scan_msg.angle_min = -math.pi
-            scan_msg.angle_increment = (2.0 * math.pi) / 360.0
-            # 360 bins from -pi: last bin is at pi - increment (angle_max is inclusive)
-            scan_msg.angle_max = math.pi - scan_msg.angle_increment
-            scan_msg.time_increment = 0.1 / 360.0
-            scan_msg.scan_time = 0.1
-            scan_msg.range_min = 0.12
-            scan_msg.range_max = 16.0
+    def _handle(self, data):
+        ts, ranges, intensities = decode_scan(data)
+        scan_msg = LaserScan()
+        scan_msg.header.stamp = self.get_clock().now().to_msg()
+        scan_msg.header.frame_id = self.frame_id
+        scan_msg.angle_min = -math.pi
+        scan_msg.angle_increment = (2.0 * math.pi) / 360.0
+        # 360 bins from -pi: last bin is at pi - increment (angle_max is inclusive)
+        scan_msg.angle_max = math.pi - scan_msg.angle_increment
+        scan_msg.time_increment = 0.1 / 360.0
+        scan_msg.scan_time = 0.1
+        scan_msg.range_min = 0.12
+        scan_msg.range_max = 16.0
 
-            ranges = payload.get("ranges", [0.0] * 360)
-            intensities = payload.get("intensities", [0] * 360)
+        ranges, intensities = self._to_ros_order(ranges, intensities)
+        ranges = np.where(ranges > 0.0, ranges, np.inf).astype(np.float32)
+        scan_msg.ranges = ranges.tolist()
+        scan_msg.intensities = intensities.tolist()
 
-            ranges, intensities = self._to_ros_order(ranges, intensities)
-            scan_msg.ranges = [r if r > 0.0 else float('inf') for r in ranges]
-            scan_msg.intensities = [float(i) for i in intensities]
+        self.scan_pub.publish(scan_msg)
 
-            self.scan_pub.publish(scan_msg)
-
-            if 'timestamp' in payload:
-                self.lat.update(float(payload['timestamp']))
-                self.lat_pub.publish(Float32(data=float(self.lat.raw_ms)))
-                self.lat_ex_pub.publish(Float32(data=float(self.lat.excess_ms)))
+        if ts is not None:
+            self.lat.update(float(ts))
+            self.lat_pub.publish(Float32(data=float(self.lat.raw_ms)))
+            self.lat_ex_pub.publish(Float32(data=float(self.lat.excess_ms)))
 
     def destroy_node(self):
+        self.running = False
+        self.rx_thread.join(timeout=1.0)
         self.sock.close()
         super().destroy_node()
 

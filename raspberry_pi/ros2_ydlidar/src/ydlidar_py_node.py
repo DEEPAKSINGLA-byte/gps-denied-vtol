@@ -77,7 +77,11 @@ class YDlidarPyNode(Node):
             end_angle = (lsa >> 1) / 64.0
             angle_diff = (end_angle - start_angle) % 360.0
 
-            is_first_packet = (ct & 0x01) == 0x01
+            # New revolution = start angle wraps past 360 deg (the CT start flag is not set
+            # on every turn by G2 firmware 3.5, see lidar_udp_streamer.py).
+            prev = getattr(self, '_last_start_angle', None)
+            self._last_start_angle = start_angle
+            is_first_packet = prev is not None and start_angle + 180.0 < prev
 
             if is_first_packet:
                 # Publish completed full revolution

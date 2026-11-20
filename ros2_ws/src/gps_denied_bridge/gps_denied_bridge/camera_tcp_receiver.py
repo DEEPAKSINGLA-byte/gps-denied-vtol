@@ -16,7 +16,9 @@ Features:
     * JPEG and RAW image reconstruction
     * ROS 2 Image publishing
     * Live FPS and latency monitoring
-    * Background TCP receiver thread
+    * Background TCP receiver thread, decoupled from decode/publish:
+      the socket is always drained at line rate and only the NEWEST frame is
+      decoded and published (stale frames are dropped, never queued)
     * Graceful shutdown
 """
 
@@ -25,16 +27,26 @@ import struct
 import json
 import time
 import threading
+import array
 
 import cv2
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32
 
 from gps_denied_bridge.metrics_utils import LatencyTracker
+
+
+def _as_uint8_array(frame):
+    """Image.data must get an array.array('B'): assigning bytes/list makes the rclpy
+    setter validate every byte in Python (~55 ms per 640x480 frame vs <1 ms)."""
+    buf = array.array('B')
+    buf.frombytes(np.ascontiguousarray(frame).tobytes())
+    return buf
 
 
 class CameraROS2Receiver(Node):
@@ -59,11 +71,15 @@ class CameraROS2Receiver(Node):
         # ROS PUBLISHER
         # -----------------------------------------------
 
+        # Depth 1: a slow subscriber gets the latest image, not a 10-deep backlog.
+        # Kept RELIABLE so RViz / segmentation_node default subscriptions still match.
         self.image_pub = self.create_publisher(
             Image,
             self.image_topic,
-            10
+            QoSProfile(reliability=ReliabilityPolicy.RELIABLE,
+                       history=HistoryPolicy.KEEP_LAST, depth=1)
         )
+        self.drop_pub = self.create_publisher(Float32, '/metrics/camera/dropped_frames', 10)
 
         self.declare_parameter('clock_offset_s', 0.0)
         self.lat = LatencyTracker(
@@ -104,16 +120,26 @@ class CameraROS2Receiver(Node):
 
         self.running = True
 
+        # Latest-frame mailbox between the network thread and the decode thread.
+        self._cv = threading.Condition()
+        self._pending = None          # (metadata, payload) not yet decoded
+        self._dropped = 0             # frames overwritten before they were decoded
+
         # -----------------------------------------------
-        # BACKGROUND THREAD
+        # BACKGROUND THREADS
         # -----------------------------------------------
 
         self.receiver_thread = threading.Thread(
             target=self.receive_stream,
             daemon=True
         )
+        self.decode_thread = threading.Thread(
+            target=self.decode_loop,
+            daemon=True
+        )
 
         self.receiver_thread.start()
+        self.decode_thread.start()
 
         self.get_logger().info("=" * 55)
         self.get_logger().info(" RGB CAMERA ROS 2 RECEIVER")
@@ -141,29 +167,31 @@ class CameraROS2Receiver(Node):
 
     def recv_all(self, sock, length):
 
-        data = bytearray()
+        # recv_into a preallocated buffer: no per-chunk bytes objects / copies.
+        data = bytearray(length)
+        view = memoryview(data)
+        got = 0
 
-        while len(data) < length and self.running:
+        while got < length and self.running:
 
-            packet = sock.recv(
-                min(length - len(data), 65536)
-            )
+            n = sock.recv_into(view[got:], min(length - got, 262144))
 
-            if not packet:
+            if not n:
                 return None
 
-            data.extend(packet)
+            got += n
 
-        if len(data) != length:
+        if got != length:
             return None
 
-        return bytes(data)
+        return data
 
     # ===================================================
     # READ ONE CAMERA FRAME
     # ===================================================
 
-    def read_frame(self, sock):
+    def read_packet(self, sock):
+        """Network only: read one framed packet, return (metadata, payload)."""
 
         # 8-byte header:
         # [4 bytes metadata length]
@@ -196,11 +224,12 @@ class CameraROS2Receiver(Node):
         if not payload:
             return None
 
-        # -----------------------------------------------
-        # RECONSTRUCT IMAGE
-        # -----------------------------------------------
-
         self._bytes += payload_len + meta_len + 8
+        return metadata, payload
+
+    def decode_frame(self, metadata, payload):
+        """CPU only: reconstruct the image and update latency metrics."""
+
         t_dec = time.perf_counter()
         encoding = metadata.get('encoding', 'jpeg')
 
@@ -252,7 +281,7 @@ class CameraROS2Receiver(Node):
             self._bytes = 0
             self._bw_t = time.monotonic()
 
-        return metadata, frame, latency
+        return frame, latency
 
     # ===================================================
     # CONVERT OPENCV IMAGE TO ROS IMAGE
@@ -279,7 +308,7 @@ class CameraROS2Receiver(Node):
             msg.is_bigendian = 0
             msg.step = msg.width
 
-            msg.data = frame.tobytes()
+            msg.data = _as_uint8_array(frame)
 
         elif frame.ndim == 3 and frame.shape[2] == 3:
 
@@ -290,9 +319,7 @@ class CameraROS2Receiver(Node):
             msg.is_bigendian = 0
             msg.step = msg.width * 3
 
-            msg.data = np.ascontiguousarray(
-                frame
-            ).tobytes()
+            msg.data = _as_uint8_array(frame)
 
         else:
 
@@ -332,54 +359,22 @@ class CameraROS2Receiver(Node):
 
                 client_sock.settimeout(10.0)
 
-                self.frame_count = 0
-
-                stream_start = time.monotonic()
-                stats_time = stream_start
-
                 # ---------------------------------------
-                # CONTINUOUS FRAME RECEPTION
+                # CONTINUOUS FRAME RECEPTION (network only)
                 # ---------------------------------------
 
                 while self.running:
 
-                    result = self.read_frame(client_sock)
+                    packet = self.read_packet(client_sock)
 
-                    if result is None:
+                    if packet is None:
                         break
 
-                    metadata, frame, latency = result
-
-                    # Publish ROS image
-
-                    self.publish_image(frame)
-
-                    self.frame_count += 1
-
-                    now = time.monotonic()
-
-                    elapsed = now - stream_start
-
-                    fps = (
-                        self.frame_count / elapsed
-                        if elapsed > 0 else 0
-                    )
-
-                    # -----------------------------------
-                    # PERIODIC STATISTICS
-                    # -----------------------------------
-
-                    if now - stats_time >= 2.0:
-
-                        self.get_logger().info(
-                            f"Frame: {self.frame_count} | "
-                            f"Resolution: {frame.shape[1]}x"
-                            f"{frame.shape[0]} | "
-                            f"FPS: {fps:.1f} | "
-                            f"Latency: {latency:.1f} ms"
-                        )
-
-                        stats_time = now
+                    with self._cv:
+                        if self._pending is not None:
+                            self._dropped += 1
+                        self._pending = packet
+                        self._cv.notify()
 
             except Exception as e:
 
@@ -402,6 +397,48 @@ class CameraROS2Receiver(Node):
                     )
 
     # ===================================================
+    # DECODE + PUBLISH (latest frame only)
+    # ===================================================
+
+    def decode_loop(self):
+
+        stream_start = time.monotonic()
+        stats_time = stream_start
+        self.frame_count = 0
+
+        while self.running:
+
+            with self._cv:
+                while self._pending is None and self.running:
+                    self._cv.wait(timeout=0.5)
+                if not self.running:
+                    break
+                metadata, payload = self._pending
+                self._pending = None
+
+            try:
+                frame, latency = self.decode_frame(metadata, payload)
+                self.publish_image(frame)
+            except Exception as e:
+                self.get_logger().warning(f"Camera frame dropped: {e}")
+                continue
+
+            self.frame_count += 1
+            now = time.monotonic()
+
+            if now - stats_time >= 2.0:
+                fps = self.frame_count / (now - stats_time)
+                self.drop_pub.publish(Float32(data=float(self._dropped)))
+                self.get_logger().info(
+                    f"Resolution: {frame.shape[1]}x{frame.shape[0]} | "
+                    f"FPS: {fps:.1f} | "
+                    f"Latency: {latency:.1f} ms | "
+                    f"Dropped (laptop side): {self._dropped}"
+                )
+                self.frame_count = 0
+                stats_time = now
+
+    # ===================================================
     # SHUTDOWN
     # ===================================================
 
@@ -413,11 +450,14 @@ class CameraROS2Receiver(Node):
 
         self.running = False
 
+        with self._cv:
+            self._cv.notify_all()
+
         self.server_sock.close()
 
-        if self.receiver_thread.is_alive():
-
-            self.receiver_thread.join(timeout=2.0)
+        for t in (self.receiver_thread, self.decode_thread):
+            if t.is_alive():
+                t.join(timeout=2.0)
 
         self.get_logger().info(
             "Camera receiver stopped."

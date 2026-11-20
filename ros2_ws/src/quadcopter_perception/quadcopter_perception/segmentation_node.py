@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-segmentation_node.py - YOLOv8 instance segmentation on the ground laptop (GPU).
+segmentation_node.py - YOLO + SAM instance segmentation on the ground laptop (GPU).
 
 Subscribes to the drone camera stream that camera_tcp_receiver publishes, so it never
 opens its own socket (live_segmentation.py's TCP server on port 5000 would compete with
 camera_tcp_receiver for the Pi's single camera connection).
 
-    /camera/image_raw ──> [YOLOv8-seg] ──> /segmentation/*
+    /camera/image_raw ──> [YOLOv8-seg] ──boxes──> [SAM 2.1] ──> fuse ──> /segmentation/*
+
+YOLO supplies classes, boxes and coarse masks; SAM is prompted with YOLO's boxes and
+returns sharp boundaries. Each SAM mask is kept only if it passes quality gates,
+otherwise the YOLO mask is used (see hybrid_segmenter.py). sam_model:=none = YOLO only.
 
 Outputs (all stamped with the SOURCE camera frame's header, so they sync with TF/odom)
   /segmentation/detections       vision_msgs/Detection2DArray
@@ -19,6 +23,9 @@ Outputs (all stamped with the SOURCE camera frame's header, so they sync with TF
   /segmentation/image_annotated  sensor_msgs/Image bgr8 overlay (only computed if subscribed)
   /segmentation/class_names      std_msgs/String JSON {"0": "person", ...} (latched)
   /metrics/segmentation/{inference_ms, latency_ms, rate_hz, num_detections}
+                                 inference_ms = total YOLO + SAM + fusion time
+  /metrics/segmentation/{yolo_ms, sam_ms, sam_refined}
+                                 per-stage time; sam_refined = masks taken from SAM
 
 Only the newest frame is processed: if inference is slower than the camera, older
 frames are dropped instead of queueing (latency stays bounded).
@@ -28,7 +35,6 @@ import json
 import threading
 import time
 
-import numpy as np
 import rclpy
 from cv_bridge import CvBridge
 from rclpy.node import Node
@@ -39,6 +45,8 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, String
 from vision_msgs.msg import (Detection2D, Detection2DArray,
                              ObjectHypothesisWithPose)
+
+from quadcopter_perception.hybrid_segmenter import HybridSegmenter
 
 
 class SegmentationNode(Node):
@@ -54,30 +62,33 @@ class SegmentationNode(Node):
         P('imgsz', 640)
         P('half', True)                  # FP16 on CUDA
         P('classes', [''])               # names to keep, e.g. ['person']; [''] = all
+        # --- SAM refinement (see hybrid_segmenter.py for the fusion gates) ---
+        P('sam_model', 'sam2.1_t.pt')    # 'none' / '' = disable SAM (plain YOLO masks)
+        P('sam_imgsz', 1024)             # 768 ~2x faster, slightly softer boundaries
+        P('sam_max_boxes', 8)            # refine at most N most-confident detections
+        P('sam_min_box_px', 16)          # smaller boxes keep the YOLO mask
+        P('sam_min_score', 0.5)          # SAM predicted-IoU threshold
+        P('sam_min_agreement', 0.3)      # min IoU(SAM, YOLO) to accept the SAM mask
+        P('sam_box_margin', 0.1)         # SAM mask clipped to box grown by this fraction
+        P('sam_every_n', 1)              # run SAM on every Nth processed frame
         g = lambda n: self.get_parameter(n).value
 
-        import torch                     # heavy imports after param parsing
-        from ultralytics import YOLO
-
-        dev = str(g('device')) or ('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.device = dev
-        self.half = bool(g('half')) and dev.startswith('cuda')
-        self.conf, self.iou, self.imgsz = float(g('conf')), float(g('iou')), int(g('imgsz'))
-
-        self.get_logger().info(f"Loading {g('model')} on {dev} (half={self.half})...")
-        self.model = YOLO(str(g('model')))
-        self.names = {int(k): v for k, v in self.model.names.items()}
-
-        wanted = [c for c in g('classes') if c]
-        unknown = [c for c in wanted if c not in self.names.values()]
-        if unknown:
-            self.get_logger().warn(f'Unknown class names ignored: {unknown}')
-        ids = [i for i, n in self.names.items() if n in wanted]
-        self.class_ids = ids or None     # None = all classes
-
-        # Warm-up so the first real frame doesn't pay CUDA/cuDNN init (~1-2 s)
-        self.model.predict(np.zeros((480, 640, 3), np.uint8), device=dev, half=self.half,
-                           imgsz=self.imgsz, verbose=False)
+        # Heavy imports (torch/ultralytics) + warm-up happen inside HybridSegmenter
+        self.seg = HybridSegmenter(
+            yolo_model=str(g('model')), sam_model=str(g('sam_model')),
+            device=str(g('device')), conf=float(g('conf')), iou=float(g('iou')),
+            imgsz=int(g('imgsz')), half=bool(g('half')),
+            classes=[c for c in g('classes') if c],
+            sam_imgsz=int(g('sam_imgsz')), sam_max_boxes=int(g('sam_max_boxes')),
+            sam_min_box_px=int(g('sam_min_box_px')),
+            sam_min_score=float(g('sam_min_score')),
+            sam_min_agreement=float(g('sam_min_agreement')),
+            sam_box_margin=float(g('sam_box_margin')),
+            logger=self.get_logger().info)
+        self.names = self.seg.names
+        self.class_ids = self.seg.class_ids
+        self.sam_every_n = max(1, int(g('sam_every_n')))
+        self._frame_idx = 0
 
         self.bridge = CvBridge()
         # RELIABLE on purpose: with CycloneDDS and default kernel socket buffers
@@ -98,7 +109,8 @@ class SegmentationNode(Node):
         names_pub = self.create_publisher(String, '/segmentation/class_names', latched)
         names_pub.publish(String(data=json.dumps({str(k): v for k, v in self.names.items()})))
         self.m = {k: self.create_publisher(Float32, f'/metrics/segmentation/{k}', 10)
-                  for k in ('inference_ms', 'latency_ms', 'rate_hz', 'num_detections')}
+                  for k in ('inference_ms', 'latency_ms', 'rate_hz', 'num_detections',
+                            'yolo_ms', 'sam_ms', 'sam_refined')}
 
         # latest-frame hand-off to a worker thread (drop stale frames)
         self._lock = threading.Lock()
@@ -110,8 +122,10 @@ class SegmentationNode(Node):
         self._worker.start()
 
         kept = 'all' if self.class_ids is None else [self.names[i] for i in self.class_ids]
+        sam = (f"{g('sam_model')} @ {g('sam_imgsz')}px, every {self.sam_every_n} frame(s)"
+               if self.seg.sam_enabled else 'disabled')
         self.get_logger().info(f"Segmentation ready: {g('image_topic')} -> /segmentation/* "
-                               f'(classes: {kept})')
+                               f'(classes: {kept}; SAM: {sam})')
 
     # ------------------------------------------------------------------ input
     def _on_image(self, msg: Image):
@@ -137,58 +151,35 @@ class SegmentationNode(Node):
     # -------------------------------------------------------------- inference
     def _process(self, msg: Image):
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        h, w = frame.shape[:2]
-
-        t0 = time.perf_counter()
-        res = self.model.predict(frame, device=self.device, half=self.half, conf=self.conf,
-                                 iou=self.iou, imgsz=self.imgsz, classes=self.class_ids,
-                                 retina_masks=True, verbose=False)[0]
-        infer_ms = (time.perf_counter() - t0) * 1e3
-
-        boxes = res.boxes
-        n = 0 if boxes is None else len(boxes)
-        cls = boxes.cls.int().cpu().numpy() if n else np.zeros(0, int)
-        conf = boxes.conf.cpu().numpy() if n else np.zeros(0)
-        xyxy = boxes.xyxy.cpu().numpy() if n else np.zeros((0, 4))
-
-        # Masks: paint low -> high confidence so the most confident instance wins overlaps
-        class_mask = np.zeros((h, w), np.uint8)
-        inst_mask = np.zeros((h, w), np.uint8)
-        if n and res.masks is not None:
-            masks = res.masks.data.cpu().numpy() > 0.5          # (n, h, w) via retina_masks
-            if masks.shape[1:] != (h, w):                       # defensive: resize if needed
-                import cv2
-                masks = np.stack([cv2.resize(m.astype(np.uint8), (w, h),
-                                             interpolation=cv2.INTER_NEAREST) > 0
-                                  for m in masks])
-            for i in np.argsort(conf):
-                class_mask[masks[i]] = cls[i] + 1
-                inst_mask[masks[i]] = min(i + 1, 255)
+        refine = self._frame_idx % self.sam_every_n == 0
+        self._frame_idx += 1
+        res = self.seg.segment(frame, refine=refine)
+        n = len(res.instances)
 
         det_arr = Detection2DArray()
         det_arr.header = msg.header
-        for i in range(n):
+        for i, inst in enumerate(res.instances):
             d = Detection2D()
             d.header = msg.header
             d.id = str(i)
-            x1, y1, x2, y2 = (float(v) for v in xyxy[i])
+            x1, y1, x2, y2 = (float(v) for v in inst.box)
             d.bbox.center.position.x = (x1 + x2) / 2.0
             d.bbox.center.position.y = (y1 + y2) / 2.0
             d.bbox.size_x = x2 - x1
             d.bbox.size_y = y2 - y1
             hyp = ObjectHypothesisWithPose()
-            hyp.hypothesis.class_id = self.names.get(int(cls[i]), str(int(cls[i])))
-            hyp.hypothesis.score = float(conf[i])
+            hyp.hypothesis.class_id = inst.class_name
+            hyp.hypothesis.score = inst.score
             d.results.append(hyp)
             det_arr.detections.append(d)
 
         self.det_pub.publish(det_arr)
-        for pub, img in ((self.cls_pub, class_mask), (self.inst_pub, inst_mask)):
+        for pub, img in ((self.cls_pub, res.class_mask), (self.inst_pub, res.instance_mask)):
             out = self.bridge.cv2_to_imgmsg(img, encoding='mono8')
             out.header = msg.header
             pub.publish(out)
         if self.ann_pub.get_subscription_count() > 0:
-            out = self.bridge.cv2_to_imgmsg(res.plot(), encoding='bgr8')
+            out = self.bridge.cv2_to_imgmsg(self.seg.annotate(frame, res), encoding='bgr8')
             out.header = msg.header
             self.ann_pub.publish(out)
 
@@ -197,8 +188,11 @@ class SegmentationNode(Node):
         self._stamps = [t for t in self._stamps if now - t < 2.0] + [now]
         rate = (len(self._stamps) - 1) / (now - self._stamps[0]) if len(self._stamps) > 1 else 0.0
         age_ms = (self.get_clock().now() - Time.from_msg(msg.header.stamp)).nanoseconds / 1e6
-        for k, v in (('inference_ms', infer_ms), ('latency_ms', age_ms),
-                     ('rate_hz', rate), ('num_detections', n)):
+        t = res.timing_ms
+        for k, v in (('inference_ms', t['total']), ('latency_ms', age_ms),
+                     ('rate_hz', rate), ('num_detections', n),
+                     ('yolo_ms', t['yolo']), ('sam_ms', t['sam']),
+                     ('sam_refined', res.num_sam_refined)):
             self.m[k].publish(Float32(data=float(v)))
 
     def destroy_node(self):

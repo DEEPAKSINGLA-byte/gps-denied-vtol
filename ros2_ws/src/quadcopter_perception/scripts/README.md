@@ -1,32 +1,16 @@
-# Semantic Mapping
+# Segmentation demo
 
-Real-time semantic segmentation using YOLOv8 for robotics applications.
-
-## Demo
-
-[![Semantic Mapping Demo](https://img.youtube.com/vi/XxDwwBQxVR0/0.jpg)](https://youtu.be/XxDwwBQxVR0)
-
-Click the image above or [watch the demo on YouTube](https://youtu.be/XxDwwBQxVR0).
-
-## Files
-
-- `experimentation.py` - Live webcam segmentation with masked overlay
-- `main.py` - Entry point (to be implemented)
-- `yolov8n-seg.pt` - Pre-trained YOLOv8 nano segmentation model (ignored by git)
-
-## Usage
+`experimentation.py` runs plain YOLOv8 segmentation on your webcam or an image. It needs no
+drone and no ROS. (The drone uses YOLO + SAM through the `segmentation_node`; see
+[docs/REFERENCE.md](../../../../docs/REFERENCE.md#segmentation-yolo--sam).)
 
 ```bash
-python experimentation.py
+pip install ultralytics opencv-python
+python3 experimentation.py              # webcam; press q to quit
+python3 experimentation.py photo.jpg    # one image
 ```
 
-Press `q` to quit. Shows two windows:
-1. Original feed with segmentation overlay
-2. Segmented mask only (background removed)
+It shows two windows: the image with the segmentation drawn on it, and only the detected
+objects (background removed). `yolov8n-seg.pt` downloads on first run.
 
-## Requirements
-
-- Python 3.8+
-- OpenCV (`cv2`)
-- NumPy
-- Ultralytics (`pip install ultralytics`)
+[Demo video](https://youtu.be/XxDwwBQxVR0)

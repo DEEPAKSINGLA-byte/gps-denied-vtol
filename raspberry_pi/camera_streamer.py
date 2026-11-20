@@ -10,6 +10,14 @@ Zero-Lag Optimizations:
   * CAP_PROP_BUFFERSIZE forced to 1 (eliminates multi-frame driver lag).
   * TCP_NODELAY enabled (disables Nagle's algorithm & packet coalescing).
   * Fast, optimized JPEG encoding (quality=70, 2x faster than 85).
+  * Camera forced to MJPG: YUYV 640x480 saturates USB 2.0 and makes UVC cams
+    drop to ~10-15 FPS with extra internal buffering.
+  * --passthrough forwards the camera's own MJPEG bytes (no decode + re-encode on the Pi).
+  * Frame dropping on congestion: TCP_NOTSENT_LOWAT keeps at most ~1 frame queued in the
+    kernel; if the link is still busy when a new frame is ready, the frame is skipped
+    instead of piling up behind the old ones (the main cause of multi-second lag on Wi-Fi).
+  * Capture timestamp taken in the grabber thread, so measured latency is end-to-end.
+  * DSCP AF41 marking -> Wi-Fi WMM "video" access category.
 
 Usage Examples:
   # Stream live camera frames continuously to laptop (Redmi 10 / LAN)
@@ -28,6 +36,7 @@ import socket
 import argparse
 import threading
 import subprocess
+import select
 from typing import Optional, Tuple
 
 try:
@@ -45,7 +54,8 @@ def get_default_target_ip() -> str:
     return "192.168.1.10"
 
 
-def init_camera(device_index=None, width: int = 640, height: int = 480):
+def init_camera(device_index=None, width: int = 640, height: int = 480,
+                passthrough: bool = False, fps: float = 30.0):
     candidates = []
     # Prefer persistent udev symlinks first if they exist
     for sym in ["/dev/camera", "/dev/drone_camera", "/dev/video-cam"]:
@@ -67,10 +77,14 @@ def init_camera(device_index=None, width: int = 640, height: int = 480):
             cap = cv2.VideoCapture(dev)
 
         if cap.isOpened():
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # FOURCC must be set before the size, or the driver picks YUYV.
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-            cap.set(cv2.CAP_PROP_FPS, 30)
+            cap.set(cv2.CAP_PROP_FPS, fps)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            if passthrough:
+                cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
 
             # Test warmup
             ok = False
@@ -80,7 +94,13 @@ def init_camera(device_index=None, width: int = 640, height: int = 480):
                     ok = True
                 time.sleep(0.03)
             if ok:
-                print(f"[+] Successfully opened camera device: {dev_desc}")
+                fcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+                fcc_s = "".join(chr((fcc >> (8 * i)) & 0xFF) for i in range(4))
+                print(f"[+] Successfully opened camera device: {dev_desc} "
+                      f"({int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))} "
+                      f"{fcc_s} @ {cap.get(cv2.CAP_PROP_FPS):.0f} FPS)")
+                if fcc_s != "MJPG":
+                    print("[!] Camera did not accept MJPG; USB bandwidth may limit FPS/latency.")
                 return cap
             cap.release()
 
@@ -93,20 +113,33 @@ class CameraCaptureThread:
     Detects hardware disconnects, clears stale frames immediately (no freeze),
     and automatically re-opens the camera when re-plugged into any port.
     """
-    def __init__(self, device=None, width: int = 640, height: int = 480):
+    def __init__(self, device=None, width: int = 640, height: int = 480,
+                 passthrough: bool = False, fps: float = 30.0):
         self.device = device
         self.width = width
         self.height = height
+        self.passthrough = passthrough
+        self.fps = fps
         self.cap = None
         self.frame = None
+        self.stamp = 0.0
+        self.shape = (height, width, 3)  # actual negotiated size, updated on (re)open
         self.is_new = False
         self.lock = threading.Lock()
         self.running = True
 
         # Initial attempt
-        self.cap = init_camera(self.device, self.width, self.height)
+        self.cap = self._open()
         self.thread = threading.Thread(target=self._worker, daemon=True, name="CamGrabber")
         self.thread.start()
+
+    def _open(self):
+        cap = init_camera(self.device, self.width, self.height, self.passthrough, self.fps)
+        if cap is not None:
+            w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            if w > 0 and h > 0:
+                self.shape = (h, w, 3)
+        return cap
 
     def _worker(self):
         fail_count = 0
@@ -129,7 +162,7 @@ class CameraCaptureThread:
                     except Exception as e:
                         pass
 
-                new_cap = init_camera(self.device, self.width, self.height)
+                new_cap = self._open()
                 if new_cap is not None:
                     print("\n[+] Camera hardware reconnected and opened successfully!")
                     self.cap = new_cap
@@ -141,11 +174,13 @@ class CameraCaptureThread:
                 ret, frame = self.cap.read()
             except Exception:
                 ret, frame = False, None
+            stamp = time.time()  # wall clock: receivers compare it with their own clock
 
             if ret and frame is not None:
                 fail_count = 0
                 with self.lock:
                     self.frame = frame
+                    self.stamp = stamp
                     self.is_new = True
             else:
                 fail_count += 1
@@ -164,11 +199,15 @@ class CameraCaptureThread:
                 time.sleep(0.01)
 
     def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+        ok, frame, _ = self.read_stamped()
+        return ok, frame
+
+    def read_stamped(self) -> Tuple[bool, Optional[np.ndarray], float]:
         with self.lock:
             if self.frame is not None and self.is_new:
                 self.is_new = False  # Mark consumed so stale/frozen frames are never repeated
-                return True, self.frame
-            return False, None
+                return True, self.frame, self.stamp
+            return False, None, 0.0
 
     def stop(self):
         self.running = False
@@ -179,23 +218,45 @@ class CameraCaptureThread:
                 pass
 
 
-def send_frame(sock: socket.socket, frame: np.ndarray, frame_id: int, mode: str = "jpeg", jpeg_quality: int = 70) -> bool:
+def _is_mjpeg_buffer(frame: np.ndarray) -> bool:
+    """With CAP_PROP_CONVERT_RGB=0 + MJPG, OpenCV returns the raw JPEG bytes as a 1-row array."""
+    if frame.dtype != np.uint8 or frame.ndim > 2 or (frame.ndim == 2 and frame.shape[0] != 1):
+        return False
+    flat = frame.reshape(-1)
+    return flat.size > 4 and flat[0] == 0xFF and flat[1] == 0xD8
+
+
+def send_frame(sock: socket.socket, frame: np.ndarray, frame_id: int, mode: str = "jpeg",
+               jpeg_quality: int = 70, timestamp: Optional[float] = None,
+               shape: Optional[Tuple[int, int, int]] = None) -> bool:
     """
     Serialize and transmit an image matrix with metadata header over TCP socket.
+    ``timestamp`` should be the capture time; ``shape`` is required for MJPEG passthrough
+    buffers (which carry no geometry of their own).
     """
-    timestamp = time.time()
-    h, w, c = frame.shape
+    if timestamp is None:
+        timestamp = time.time()
+    mean_intensity = None
 
-    if mode == "raw":
+    if _is_mjpeg_buffer(frame):
+        payload = frame.tobytes()
+        encoding = "jpeg"
+        h, w, c = shape if shape else (0, 0, 3)
+    elif mode == "raw":
+        h, w, c = frame.shape
         payload = frame.tobytes()
         encoding = "raw"
     else:
+        h, w, c = frame.shape
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
         success, encimg = cv2.imencode(".jpg", frame, encode_param)
         if not success:
             return False
         payload = encimg.tobytes()
         encoding = "jpeg"
+    if frame.ndim == 3:
+        # Sparse sample: a full-frame mean costs several ms per frame on a Pi.
+        mean_intensity = round(float(frame[::8, ::8].mean()), 2)
 
     metadata = {
         "frame_id": frame_id,
@@ -204,8 +265,9 @@ def send_frame(sock: socket.socket, frame: np.ndarray, frame_id: int, mode: str 
         "dtype": str(frame.dtype),
         "encoding": encoding,
         "payload_size": len(payload),
-        "mean_intensity": round(float(frame.mean()), 2),
     }
+    if mean_intensity is not None:
+        metadata["mean_intensity"] = mean_intensity
 
     meta_bytes = json.dumps(metadata).encode("utf-8")
     header = struct.pack(">II", len(meta_bytes), len(payload))
@@ -225,7 +287,10 @@ def run_streamer(
     mode: str = "jpeg",
     snapshot: bool = False,
     fps_limit: float = 30.0,
-    jpeg_quality: int = 70
+    jpeg_quality: int = 70,
+    width: int = 640,
+    height: int = 480,
+    passthrough: bool = False,
 ):
     if isinstance(device, str) and device.isdigit():
         device = int(device)
@@ -236,13 +301,15 @@ def run_streamer(
     print("=" * 68)
     print(f"Target Laptop:    {target_ip}:{port}")
     print(f"Camera Device:    {dev_str}")
-    print(f"Encoding Mode:    {mode.upper()} (quality={jpeg_quality})")
+    print(f"Resolution:       {width}x{height}")
+    print(f"Encoding Mode:    {'MJPEG PASSTHROUGH' if passthrough else f'{mode.upper()} (quality={jpeg_quality})'}")
     print(f"Transmission:     {'SINGLE SNAPSHOT' if snapshot else 'CONTINUOUS ZERO-LAG STREAM'}")
     print(f"FPS Target:       {fps_limit}")
     print("=" * 68)
 
     # Initialize resilient background grabber thread with auto-hotplug recovery
-    grabber = CameraCaptureThread(device=device, width=640, height=480)
+    grabber = CameraCaptureThread(device=device, width=width, height=height,
+                                  passthrough=passthrough, fps=fps_limit)
     time.sleep(0.3)
 
     interval = 1.0 / max(fps_limit, 1.0)
@@ -251,7 +318,17 @@ def run_streamer(
         while True:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+            # NOTSENT_LOWAT: the socket only reports writable once the previous frame has
+            # (almost) left the host, so we can drop frames instead of queueing them.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 131072)
+            try:
+                sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, "TCP_NOTSENT_LOWAT", 25), 16384)
+            except OSError:
+                pass
+            try:
+                sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 0x88)  # DSCP AF41 -> WMM video
+            except OSError:
+                pass
 
             connected = False
             first_attempt = True
@@ -271,13 +348,20 @@ def run_streamer(
                     time.sleep(1.0)
 
             frame_id = 0
+            dropped = 0
             t_start = time.time()
 
             try:
                 if snapshot:
-                    ret, frame = grabber.read()
+                    ret, frame, stamp = False, None, 0.0
+                    for _ in range(200):  # grabber may not have a frame yet
+                        ret, frame, stamp = grabber.read_stamped()
+                        if ret:
+                            break
+                        time.sleep(0.01)
                     if ret and frame is not None:
-                        ok = send_frame(sock, frame, frame_id=1, mode=mode, jpeg_quality=jpeg_quality)
+                        ok = send_frame(sock, frame, frame_id=1, mode=mode, jpeg_quality=jpeg_quality,
+                                        timestamp=stamp, shape=grabber.shape)
                         if ok:
                             print(f"[SUCCESS] Sent image matrix snapshot: shape={frame.shape}, size={len(frame.tobytes())} bytes")
                         else:
@@ -287,20 +371,30 @@ def run_streamer(
                     print("Streaming live real-time frames... Press Ctrl+C to stop.")
                     while True:
                         loop_start = time.time()
-                        ret, frame = grabber.read()
+                        ret, frame, stamp = grabber.read_stamped()
                         if not ret or frame is None:
-                            time.sleep(0.005)
+                            time.sleep(0.002)
+                            continue
+
+                        # Link still busy with the previous frame -> drop this one rather
+                        # than queue it (queued frames are what turn into seconds of lag).
+                        _, writable, _ = select.select([], [sock], [], 0)
+                        if not writable:
+                            dropped += 1
                             continue
 
                         frame_id += 1
-                        ok = send_frame(sock, frame, frame_id=frame_id, mode=mode, jpeg_quality=jpeg_quality)
+                        ok = send_frame(sock, frame, frame_id=frame_id, mode=mode, jpeg_quality=jpeg_quality,
+                                        timestamp=stamp, shape=grabber.shape)
                         if not ok:
                             print("\n[!] Connection to Ground Station lost. Auto-reconnecting...")
                             break
 
                         elapsed = time.time() - t_start
                         rate = frame_id / elapsed if elapsed > 0 else 0
-                        sys.stdout.write(f"\r[STREAMING] Frame {frame_id:>4} | Shape: {frame.shape} | Rate: {rate:>4.1f} FPS | Mean: {frame.mean():>5.1f}")
+                        age_ms = (time.time() - stamp) * 1e3
+                        sys.stdout.write(f"\r[STREAMING] Frame {frame_id:>4} | Rate: {rate:>4.1f} FPS | "
+                                         f"Dropped: {dropped:>4} | Capture->sent: {age_ms:>5.1f} ms")
                         sys.stdout.flush()
 
                         delay = interval - (time.time() - loop_start)
@@ -327,6 +421,11 @@ def main():
     parser.add_argument("--snapshot", action="store_true", help="Send single verified frame snapshot and exit")
     parser.add_argument("--stream", action="store_true", default=True, help="Stream frames continuously (default: True)")
     parser.add_argument("--fps", type=float, default=30.0, help="Maximum stream FPS limit (default: 30.0)")
+    parser.add_argument("--width", type=int, default=640, help="Capture width (default: 640)")
+    parser.add_argument("--height", type=int, default=480, help="Capture height (default: 480)")
+    parser.add_argument("--passthrough", action="store_true",
+                        help="Send the camera's own MJPEG frames untouched (lowest Pi CPU/latency; "
+                             "--quality is ignored, frames may be larger)")
 
     args = parser.parse_args()
 
@@ -338,7 +437,10 @@ def main():
         mode=args.mode,
         snapshot=is_snapshot,
         fps_limit=args.fps,
-        jpeg_quality=args.quality
+        jpeg_quality=args.quality,
+        width=args.width,
+        height=args.height,
+        passthrough=args.passthrough,
     )
 
 

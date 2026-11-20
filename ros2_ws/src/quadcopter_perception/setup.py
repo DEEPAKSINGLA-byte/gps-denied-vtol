@@ -18,7 +18,7 @@ setup(
     zip_safe=True,
     maintainer='remandey',
     maintainer_email='reman.airport@gmail.com',
-    description='YOLOv8 instance segmentation of the drone camera stream (ROS 2)',
+    description='YOLO + SAM instance segmentation of the drone camera stream (ROS 2)',
     license='TODO: License declaration',
     extras_require={
         'test': [

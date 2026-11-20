@@ -22,6 +22,10 @@ Coordinate convention:
   linear.z = up (+Z), angular.z = yaw rate.
   These are sent as-is to the Pi listener which converts to PX4/ArduPilot
   NED/body-frame setpoints.
+
+Latency: each /cmd_vel is forwarded the moment it arrives (no wait for a timer tick).
+The 20 Hz timer only keeps the setpoint stream alive / sends the stale-command stop when
+Nav2 goes quiet. Packets are DSCP CS6 marked (Wi-Fi WMM voice queue).
 """
 
 import json
@@ -85,6 +89,10 @@ class MavlinkCmdBridge(Node):
         # ---------------- UDP sockets ----------------
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:  # DSCP CS6 -> WMM voice: commands jump ahead of queued camera traffic
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 0xC0)
+        except OSError:
+            pass
 
         self.get_logger().info(
             f'mavlink_cmd_bridge: cmd_vel={self.cmd_vel_topic} -> '
@@ -96,8 +104,11 @@ class MavlinkCmdBridge(Node):
             f'max_xy_speed={self.max_xy_speed} m/s'
         )
 
-        # Publish timer: send velocity setpoints at 20 Hz
-        self.timer = self.create_timer(0.05, self._timer_callback)
+        # Keepalive timer (20 Hz): commands are sent on arrival in cmd_vel_callback; the
+        # timer only fires a send when nothing went out for a full period.
+        self._period = 0.05
+        self._last_tick = 0.0
+        self.timer = self.create_timer(self._period, self._timer_callback)
 
     # ------------------------------------------------------------
     # Callbacks
@@ -106,6 +117,9 @@ class MavlinkCmdBridge(Node):
         with self.lock:
             self.last_cmd = msg
             self.last_cmd_time = self.get_clock().now()
+        # Forward immediately. Safe: the default single-threaded executor never runs this
+        # concurrently with _timer_callback.
+        self._tick()
 
     def _cmd_is_fresh(self) -> bool:
         if self.last_cmd_time is None:
@@ -124,6 +138,12 @@ class MavlinkCmdBridge(Node):
     # Timer: send discrete setup + continuous velocity
     # ------------------------------------------------------------
     def _timer_callback(self):
+        # 10% slack so a timer tick right after a cmd-triggered send is skipped
+        if time.monotonic() - self._last_tick >= 0.9 * self._period:
+            self._tick()
+
+    def _tick(self):
+        self._last_tick = time.monotonic()
         with self.lock:
             cmd = self.last_cmd
             fresh = self._cmd_is_fresh()
