@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'x500_px4_bridge = x500_px4_bridge.x500_px4_bridge:main',
             'tf2_broadcaster = x500_px4_bridge.tf2_broadcaster:main',
+            'gz_bridge = x500_px4_bridge.gz_bridge:main',
         ],
     },
 )

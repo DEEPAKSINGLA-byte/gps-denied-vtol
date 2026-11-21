@@ -9,7 +9,9 @@
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_common</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>explore_lite</exec_depend>
   <exec_depend>ros_gz_bridge</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>rviz2</exec_depend>

@@ -24,9 +24,11 @@ The node also:
   * maintains PX4 local NED z = -1.5 m;
   * limits horizontal speed to 0.25 m/s initially;
   * stops on stale /cmd_vel_nav commands;
-  * applies a simple directional LiDAR emergency stop;
+  * removes motion towards obstacles closer than ~0.65 m (lidar safety);
   * publishes OffboardControlMode at 20 Hz;
-  * switches to OFFBOARD after a warm-up period and then arms.
+  * switches to OFFBOARD after a warm-up period and then arms, retrying
+    once a second until PX4's vehicle_status confirms both (PX4 may
+    still be booting when this node starts).
 
 IMPORTANT:
 This implementation follows the coordinate convention documented in the
@@ -46,7 +48,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from tf2_ros import Buffer, TransformListener, TransformException
 
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleStatus
 
 
 class X500PX4Bridge(Node):
@@ -68,13 +70,24 @@ class X500PX4Bridge(Node):
         self.declare_parameter('safety_enabled', False)
         self.declare_parameter('hard_stop_distance_m', 0.45)
         self.declare_parameter('directional_stop_distance_m', 0.65)
-        self.declare_parameter('directional_sector_deg', 45.0)
+        self.declare_parameter('directional_sector_deg', 45.0)  # unused, kept for old configs
+        self.declare_parameter('repulsion_speed_mps', 0.15)
+        # Turn to face the direction of travel (the 2D lidar covers 270 degrees
+        # and is blind behind), slowing down while the turn is large.
+        self.declare_parameter('yaw_follows_motion', True)
+        self.declare_parameter('yaw_follow_min_speed_mps', 0.12)
 
         # PX4 / Offboard parameters
         self.declare_parameter('offboard_rate_hz', 20.0)
         self.declare_parameter('offboard_warmup_setpoints', 20)
         self.declare_parameter('arm_after_setpoints', 30)
         self.declare_parameter('send_commands', True)
+        self.declare_parameter('command_retry_s', 1.0)
+        self.declare_parameter('command_retry_timeout_s', 120.0)
+        # Simulation convenience: if PX4 drops out of OFFBOARD or disarms (e.g. a
+        # failsafe after a short /clock gap), ask for OFFBOARD + ARM again.
+        # Set false on anything that is not a simulator.
+        self.declare_parameter('keep_offboard', True)
 
         self.target_altitude_m = float(self.get_parameter('target_altitude_m').value)
         self.max_xy_speed = float(self.get_parameter('max_xy_speed_mps').value)
@@ -85,6 +98,10 @@ class X500PX4Bridge(Node):
         self.directional_stop_distance = float(
             self.get_parameter('directional_stop_distance_m').value
         )
+        self.repulsion_speed = float(self.get_parameter('repulsion_speed_mps').value)
+        self.yaw_follows_motion = bool(self.get_parameter('yaw_follows_motion').value)
+        self.yaw_follow_min_speed = float(self.get_parameter('yaw_follow_min_speed_mps').value)
+        self.target_yaw_ned = float('nan')
         self.directional_sector_rad = math.radians(
             float(self.get_parameter('directional_sector_deg').value)
         )
@@ -93,6 +110,11 @@ class X500PX4Bridge(Node):
         self.warmup_setpoints = int(self.get_parameter('offboard_warmup_setpoints').value)
         self.arm_after_setpoints = int(self.get_parameter('arm_after_setpoints').value)
         self.send_commands = bool(self.get_parameter('send_commands').value)
+        self.command_retry_s = float(self.get_parameter('command_retry_s').value)
+        self.command_retry_timeout_s = float(
+            self.get_parameter('command_retry_timeout_s').value
+        )
+        self.keep_offboard = bool(self.get_parameter('keep_offboard').value)
 
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.scan_topic = str(self.get_parameter('scan_topic').value)
@@ -108,6 +130,12 @@ class X500PX4Bridge(Node):
         self.setpoint_counter = 0
         self.offboard_sent = False
         self.arm_sent = False
+        self.vehicle_status: Optional[VehicleStatus] = None
+        self.takeoff_done = False
+        self.in_control = False
+        self.gave_up = False
+        self.first_command_time: Optional[Time] = None
+        self.last_command_time: Optional[Time] = None
         self.last_log_time = self.get_clock().now()
 
         # ---------------- TF ----------------
@@ -143,6 +171,13 @@ class X500PX4Bridge(Node):
             self.scan_callback,
             sensor_qos,
         )
+
+        # PX4 >= 1.16 versions this topic (vehicle_status_v4 for px4_msgs
+        # MESSAGE_VERSION 4); older firmware uses the plain name. Listen to both.
+        self.status_subs = [
+            self.create_subscription(VehicleStatus, topic, self.status_callback, px4_qos)
+            for topic in ('/fmu/out/vehicle_status_v4', '/fmu/out/vehicle_status')
+        ]
 
         # ---------------- PX4 publishers ----------------
         self.offboard_control_mode_pub = self.create_publisher(
@@ -183,6 +218,9 @@ class X500PX4Bridge(Node):
     def cmd_vel_callback(self, msg: Twist) -> None:
         self.last_cmd = msg
         self.last_cmd_time = self.get_clock().now()
+
+    def status_callback(self, msg: VehicleStatus) -> None:
+        self.vehicle_status = msg
 
     def scan_callback(self, msg: LaserScan) -> None:
         self.last_scan = msg
@@ -236,42 +274,79 @@ class X500PX4Bridge(Node):
         vy_odom = s * vx_base + c * vy_base
         return vx_odom, vy_odom
 
-    def lidar_emergency_stop(self, vx_base: float, vy_base: float) -> bool:
-        """
-        Safety check in the LiDAR/base horizontal plane.
+    def lidar_safety_filter(self, vx_base: float, vy_base: float) -> Tuple[float, float, bool]:
+        """Remove the part of the command that points at a close obstacle.
 
-        1) Any valid point below hard_stop_distance stops motion.
-        2) Otherwise, if an obstacle lies within the direction of commanded
-           travel and below directional_stop_distance, stop motion.
+        For every lidar return closer than directional_stop_distance_m (or
+        hard_stop_distance_m, whichever is larger), the velocity component
+        towards that point is removed (vector projection); motion along or
+        away from it is kept. So the drone can still slide along a wall or
+        back out of a doorway. (An earlier version stopped all motion as soon
+        as anything was within reach, which left the drone frozen next to a
+        door frame until it drifted into it.)
+
+        Anything closer than hard_stop_distance_m also adds a gentle push
+        away from it (up to repulsion_speed_mps), even while hovering with no
+        command, so the drone never drifts into what it is next to.
+
+        Returns (vx, vy, limited).
         """
         if not self.safety_enabled or not self.have_scan or self.last_scan is None:
-            return False
+            return vx_base, vy_base, False
 
         scan = self.last_scan
-
-        # Hard stop anywhere around the vehicle.
-        for r in scan.ranges:
-            if math.isfinite(r) and scan.range_min <= r <= self.hard_stop_distance:
-                return True
-
-        speed = math.hypot(vx_base, vy_base)
-        if speed < 1e-3:
-            return False
-
-        motion_angle = math.atan2(vy_base, vx_base)
-
+        reach = max(self.hard_stop_distance, self.directional_stop_distance)
+        close = []
         angle = scan.angle_min
         for r in scan.ranges:
-            if math.isfinite(r) and scan.range_min <= r <= self.directional_stop_distance:
-                diff = math.atan2(
-                    math.sin(angle - motion_angle),
-                    math.cos(angle - motion_angle),
-                )
-                if abs(diff) <= self.directional_sector_rad:
-                    return True
+            if math.isfinite(r) and scan.range_min <= r <= reach:
+                close.append((r, math.cos(angle), math.sin(angle)))
             angle += scan.angle_increment
+        if not close:
+            return vx_base, vy_base, False
 
-        return False
+        limited = False
+        for _ in range(2):  # a second pass catches components re-added by the first
+            for _, ux, uy in close:
+                toward = vx_base * ux + vy_base * uy
+                if toward > 1e-6:
+                    vx_base -= toward * ux
+                    vy_base -= toward * uy
+                    limited = True
+
+        px = py = 0.0
+        for r, ux, uy in close:
+            if r < self.hard_stop_distance:
+                k = 1.0 - r / self.hard_stop_distance
+                px -= k * ux
+                py -= k * uy
+        push = math.hypot(px, py)
+        if push > 1e-6:
+            scale = min(push, 1.0) * self.repulsion_speed / push
+            vx_base += px * scale
+            vy_base += py * scale
+            limited = True
+        return vx_base, vy_base, limited
+
+    def face_direction_of_travel(
+        self, vx_px4: float, vy_px4: float, yaw_enu: float
+    ) -> Tuple[float, float]:
+        """Set target_yaw_ned to the travel direction; slow down while turning.
+
+        PX4 heading is NED: 0 = north, +90 deg = east, i.e. atan2(v_east, v_north).
+        While the heading error is large the lidar does not see the way ahead
+        yet, so speed is scaled by cos(error) (at least 25 %), and to 10 %
+        when the target is more than 90 deg away (turn first, then go).
+        """
+        speed = math.hypot(vx_px4, vy_px4)
+        if speed < self.yaw_follow_min_speed:
+            return vx_px4, vy_px4  # keep the last heading while (nearly) hovering
+        self.target_yaw_ned = math.atan2(vy_px4, vx_px4)
+        yaw_ned = math.pi / 2.0 - yaw_enu
+        err = math.atan2(math.sin(self.target_yaw_ned - yaw_ned),
+                         math.cos(self.target_yaw_ned - yaw_ned))
+        scale = max(0.25, math.cos(err)) if abs(err) <= math.pi / 2 else 0.1
+        return vx_px4 * scale, vy_px4 * scale
 
     def build_setpoint(self, vx_px4: float, vy_px4: float) -> TrajectorySetpoint:
         msg = TrajectorySetpoint()
@@ -286,11 +361,11 @@ class X500PX4Bridge(Node):
         msg.acceleration = [float('nan'), float('nan'), float('nan')]
         msg.jerk = [float('nan'), float('nan'), float('nan')]
 
-        # We deliberately do not command yaw here. Nav2 is being used for
-        # translational exploration; current yaw is read from TF for velocity
-        # transformation.
-        msg.yaw = float('nan')
-        msg.yawspeed = 0.0
+        # Heading: with yaw_follows_motion, the direction of travel (so the
+        # lidar, which is blind over the rear 90 degrees, looks where the
+        # drone is going); otherwise NaN = PX4 keeps the current heading.
+        msg.yaw = float(self.target_yaw_ned)
+        msg.yawspeed = float('nan')
         return msg
 
     def publish_offboard_mode(self) -> None:
@@ -352,10 +427,11 @@ class X500PX4Bridge(Node):
                 self.max_xy_speed,
             )
 
-            if self.lidar_emergency_stop(vx_base, vy_base):
-                vx_base = 0.0
-                vy_base = 0.0
-                self._throttled_log('LiDAR safety stop active: horizontal command suppressed')
+        # Also while hovering without a command: it may push away from a wall.
+        if self.takeoff_done:
+            vx_base, vy_base, limited = self.lidar_safety_filter(vx_base, vy_base)
+            if limited:
+                self._throttled_log('LiDAR safety: motion towards a close obstacle removed')
 
         if yaw is None:
             vx_px4 = 0.0
@@ -370,6 +446,9 @@ class X500PX4Bridge(Node):
             vx_px4 = vy_odom
             vy_px4 = vx_odom
 
+            if self.yaw_follows_motion:
+                vx_px4, vy_px4 = self.face_direction_of_travel(vx_px4, vy_px4, yaw)
+
         setpoint = self.build_setpoint(vx_px4, vy_px4)
         self.trajectory_setpoint_pub.publish(setpoint)
 
@@ -377,25 +456,72 @@ class X500PX4Bridge(Node):
             return
 
         self.setpoint_counter += 1
+        if self.gave_up or self.setpoint_counter < self.warmup_setpoints:
+            return
 
-        # First establish the Offboard heartbeat/setpoint stream.
-        if (not self.offboard_sent) and self.setpoint_counter >= self.warmup_setpoints:
+        status = self.vehicle_status
+        offboard = (status is not None
+                    and status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD)
+        armed = (status is not None
+                 and status.arming_state == VehicleStatus.ARMING_STATE_ARMED)
+        if offboard and armed:
+            if not self.in_control:
+                self.get_logger().info(
+                    'PX4 is in OFFBOARD and armed: taking off' if not self.takeoff_done
+                    else 'Back in OFFBOARD and armed')
+            self.in_control = True
+            self.takeoff_done = True
+            self.first_command_time = None
+            return
+
+        if self.in_control:
+            self.in_control = False
+            if not self.keep_offboard:
+                self.get_logger().warn('PX4 left OFFBOARD/armed; not taking control back '
+                                       '(keep_offboard is false)')
+                self.gave_up = True
+                return
+            self.get_logger().warn(
+                'PX4 left OFFBOARD/armed (failsafe, e.g. setpoints stopped for a moment); '
+                'requesting it again')
+        if self.takeoff_done and not self.keep_offboard:
+            return
+
+        now = self.get_clock().now()
+        if self.first_command_time is None:
+            self.first_command_time = now
+        elapsed = (now - self.first_command_time).nanoseconds * 1e-9
+        if elapsed > self.command_retry_timeout_s:
+            self.get_logger().error(
+                'PX4 did not reach OFFBOARD + armed within '
+                f'{self.command_retry_timeout_s:.0f} s; giving up (check the pxh> output)')
+            self.gave_up = True  # stop retrying
+            return
+        if (self.last_command_time is not None
+                and (now - self.last_command_time).nanoseconds * 1e-9 < self.command_retry_s):
+            return
+        self.last_command_time = now
+
+        if not offboard:
             self.publish_vehicle_command(
                 VehicleCommand.VEHICLE_CMD_DO_SET_MODE,
                 param1=1.0,
                 param2=6.0,  # PX4 custom main mode: OFFBOARD
             )
+            if not self.offboard_sent:
+                self.get_logger().info('Requested PX4 OFFBOARD mode')
             self.offboard_sent = True
-            self.get_logger().info('Requested PX4 OFFBOARD mode')
 
-        # Then arm.
-        if (not self.arm_sent) and self.setpoint_counter >= self.arm_after_setpoints:
+        # Arm once the warm-up count is reached (PX4 accepts arm then OFFBOARD
+        # too, so this does not have to wait for the mode switch).
+        if not armed and self.setpoint_counter >= self.arm_after_setpoints:
             self.publish_vehicle_command(
                 VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM,
                 param1=1.0,
             )
+            if not self.arm_sent:
+                self.get_logger().info('Requested PX4 ARM')
             self.arm_sent = True
-            self.get_logger().info('Requested PX4 ARM')
 
 
 def main(args=None) -> None:
@@ -407,7 +533,7 @@ def main(args=None) -> None:
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == '__main__':

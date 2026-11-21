@@ -36,11 +36,11 @@ def generate_launch_description():
         output='screen',
     )
 
-    # 4. Static transform from base_footprint to lidar link
+    # 4. Static transform from base_link (tf2_broadcaster) to lidar link
     static_tf_node = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        arguments=['0.12', '0', '0.26', '0', '0', '0', 'base_footprint', 'link'],
+        arguments=['0.12', '0', '0.26', '0', '0', '0', 'base_link', 'link'],
         parameters=[{'use_sim_time': True}],
         output='screen',
     )

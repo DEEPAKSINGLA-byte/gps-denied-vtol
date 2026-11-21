@@ -14,7 +14,7 @@
 | Set up a laptop or Pi (once) | [docs/SETUP.md](docs/SETUP.md) |
 | Look up ports, topics, options | [docs/REFERENCE.md](docs/REFERENCE.md) |
 | Use the Pi's tools | [raspberry_pi/README.md](raspberry_pi/README.md) |
-| Run the simulator | [docs/SIMULATION.md](docs/SIMULATION.md) |
+| Run the simulator (park or office, one command each) | [docs/SIMULATION.md](docs/SIMULATION.md) |
 | Build and test code | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 | Read the research | [docs/RESEARCH.md](docs/RESEARCH.md) |
 

@@ -21,7 +21,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='base_link_to_laser4',
-        arguments=['0', '0', '0.1', '0', '0', '0', 'base_link', 'laser_frame']
+        arguments=['0', '0', '-0.15', '0', '0', '0', 'base_link', 'laser_frame']  # lidar 0.15 m below base_link
     )
 
     return LaunchDescription([

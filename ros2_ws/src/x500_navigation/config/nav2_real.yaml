@@ -206,17 +206,22 @@ local_costmap:
         plugin: "nav2_costmap_2d::ObstacleLayer"
 
         enabled: true
-        max_obstacle_height: 20.0
+        # Layer-level window too (its min defaults to 0.0 and silently drops every point
+        # below odom z = 0, i.e. the whole scan when the drone is on the floor).
+        min_obstacle_height: -100.0
+        max_obstacle_height: 100.0
 
         observation_sources: scan
 
         scan:
           topic: /scan
           data_type: "LaserScan"
-          # Scan points sit at flight altitude + mount height in the odom frame; Nav2's
-          # default 0.0-2.0 m window would drop EVERY return above ~1.7 m altitude.
-          min_obstacle_height: 0.10   # reject floor returns when the drone pitches
-          max_obstacle_height: 20.0
+          # 2D lidar: every return lies in the scan plane, so the height window must not
+          # filter on odom z. That z = estimated altitude - 0.15 m lidar mount, which is
+          # NEGATIVE on the floor and drifts with the baro; a 0.10 m floor here dropped
+          # every return whenever the drone sat on the ground (empty costmaps).
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
 
           marking: true
           clearing: true
@@ -265,17 +270,22 @@ global_costmap:
         plugin: "nav2_costmap_2d::ObstacleLayer"
 
         enabled: true
-        max_obstacle_height: 20.0
+        # Layer-level window too (its min defaults to 0.0 and silently drops every point
+        # below odom z = 0, i.e. the whole scan when the drone is on the floor).
+        min_obstacle_height: -100.0
+        max_obstacle_height: 100.0
 
         observation_sources: scan
 
         scan:
           topic: /scan
           data_type: "LaserScan"
-          # Scan points sit at flight altitude + mount height in the odom frame; Nav2's
-          # default 0.0-2.0 m window would drop EVERY return above ~1.7 m altitude.
-          min_obstacle_height: 0.10   # reject floor returns when the drone pitches
-          max_obstacle_height: 20.0
+          # 2D lidar: every return lies in the scan plane, so the height window must not
+          # filter on odom z. That z = estimated altitude - 0.15 m lidar mount, which is
+          # NEGATIVE on the floor and drifts with the baro; a 0.10 m floor here dropped
+          # every return whenever the drone sat on the ground (empty costmaps).
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
 
           marking: true
           clearing: true

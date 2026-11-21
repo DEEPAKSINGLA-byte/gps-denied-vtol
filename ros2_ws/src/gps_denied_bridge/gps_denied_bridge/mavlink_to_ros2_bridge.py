@@ -94,7 +94,9 @@ class MavlinkToRos2Bridge(Node):
         self.declare_parameter('optical_flow_scale', 1.0)
         self.declare_parameter('z_source', 'auto')  # auto | rangefinder | flow | ekf | barometer
         self.declare_parameter('min_flow_quality', 20)  # ignore flow below this (0-255)
-        self.declare_parameter('home_alt_m', 0.0)  # baro altitude at takeoff (m, above sea level)
+        # Baro altitude (m above sea level) that counts as z = 0. NaN (default) = use the
+        # first barometer reading after startup, i.e. the ground the drone is sitting on.
+        self.declare_parameter('home_alt_m', float('nan'))
         # Zero-velocity update: when the IMU says the vehicle is not moving, flow velocity is
         # forced to 0 and dead-reckoned position is frozen, so sensor noise/bias cannot
         # integrate into drift. Stationary (bench log): |a| std ~3 mg, |w| ~1 deg/s; hovering
@@ -115,6 +117,7 @@ class MavlinkToRos2Bridge(Node):
         self.z_source = str(self.get_parameter('z_source').value)
         self.min_flow_q = int(self.get_parameter('min_flow_quality').value)
         self.home_alt_m = float(self.get_parameter('home_alt_m').value)
+        self.home_hud_alt_m = float('nan')   # same, for the VFR_HUD altitude fallback
         self.zupt_enable = bool(self.get_parameter('zupt_enable').value)
         self.zupt_window_s = float(self.get_parameter('zupt_window_s').value)
         self.zupt_accel_std = float(self.get_parameter('zupt_accel_std_mg').value)
@@ -353,11 +356,22 @@ class MavlinkToRos2Bridge(Node):
             return -float(z) if z is not None else None   # NED z is down
 
         def baro():
+            # Both are altitude above SEA LEVEL; subtract the reading at startup so z is
+            # height above the takeoff spot (otherwise base_link floats tens/hundreds of
+            # metres above odom).
             b = (telem.get('barometer') or {}).get('baro_alt_m')
             if b is not None:
+                if not math.isfinite(self.home_alt_m):
+                    self.home_alt_m = float(b)
+                    self.get_logger().info(
+                        f'Barometer zeroed: {b:.1f} m above sea level = z 0')
                 return float(b) - self.home_alt_m
             a = (telem.get('vfr_hud') or {}).get('alt_m')
-            return float(a) if a is not None else None
+            if a is None:
+                return None
+            if not math.isfinite(self.home_hud_alt_m):
+                self.home_hud_alt_m = float(a)
+            return float(a) - self.home_hud_alt_m
 
         sources = {'rangefinder': [rangefinder], 'flow': [flow], 'ekf': [ekf],
                    'barometer': [baro],

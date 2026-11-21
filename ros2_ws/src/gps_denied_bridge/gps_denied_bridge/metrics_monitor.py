@@ -19,7 +19,8 @@ Scalars (std_msgs/Float32)
 Other outputs
   /diagnostics                 diagnostic_msgs/DiagnosticArray (rqt_robot_monitor)
   /metrics/overlay             visualization_msgs/MarkerArray  (range rings, nearest
-                               obstacle, text dashboard)
+                               obstacle)
+  /metrics/dashboard           sensor_msgs/Image (bgr8 status panel; RViz Image display)
   /metrics/odom_trail          nav_msgs/Path (dead-reckoned trajectory)
 
 costmap `scan_agreement` = fraction of lidar returns (inside the costmap window,
@@ -31,6 +32,7 @@ the lidar sees; drops reveal TF/timing problems or dropped scans.
 import math
 import time
 
+import cv2
 import numpy as np
 import rclpy
 from rclpy.duration import Duration
@@ -42,7 +44,7 @@ from rclpy.time import Time
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import Point, PoseStamped, Twist
 from nav_msgs.msg import OccupancyGrid, Odometry, Path
-from sensor_msgs.msg import LaserScan
+from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import ColorRGBA, Float32
 from visualization_msgs.msg import Marker, MarkerArray
 import tf2_ros
@@ -59,6 +61,14 @@ LETHAL = 100
 OK, WARN, ERROR = DiagnosticStatus.OK, DiagnosticStatus.WARN, DiagnosticStatus.ERROR
 LEVEL_RGB = {OK: (0.2, 0.9, 0.3), WARN: (1.0, 0.75, 0.1), ERROR: (1.0, 0.25, 0.2)}
 LEVEL_TXT = {OK: 'OK', WARN: 'WARN', ERROR: 'FAIL'}
+LEVEL_BGR = {lv: (int(b * 255), int(g * 255), int(r * 255)) for lv, (r, g, b) in LEVEL_RGB.items()}
+
+# Dashboard image (drawn at 2x, RViz scales it to the panel width).
+DASH_W = 840
+DASH_BG = (36, 28, 22)          # BGR, dark navy - matches the RViz background
+DASH_FG = (235, 230, 225)
+DASH_DIM = (165, 150, 140)
+DASH_FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 def quat_to_rot(q):
@@ -90,8 +100,6 @@ class MetricsMonitor(Node):
         P('obstacle_error_m', 0.8)
         P('scan_max_range_m', 8.0)     # = costmap obstacle_max_range
         P('trail_max_points', 600)
-        P('dashboard_offset', [-0.3, 1.8, 0.4])
-        P('dashboard_text_height', 0.13)
         P('ring_radii_m', [1.0, 2.0, 4.0, 8.0])
         g = lambda n: self.get_parameter(n).value
         self.odom_frame, self.base_frame = g('odom_frame'), g('base_frame')
@@ -101,8 +109,6 @@ class MetricsMonitor(Node):
             'latency_warn_ms', 'latency_error_ms', 'tf_age_warn_ms',
             'obstacle_warn_m', 'obstacle_error_m', 'scan_max_range_m')}
         self.trail_max = int(g('trail_max_points'))
-        self.dash_off = list(g('dashboard_offset'))
-        self.dash_h = float(g('dashboard_text_height'))
         self.rings = list(g('ring_radii_m'))
 
         # ---- state ----
@@ -172,6 +178,7 @@ class MetricsMonitor(Node):
         self.diag_pub = self.create_publisher(DiagnosticArray, '/diagnostics', 10)
         self.marker_pub = self.create_publisher(MarkerArray, '/metrics/overlay', 10)
         self.trail_pub = self.create_publisher(Path, '/metrics/odom_trail', 10)
+        self.dash_pub = self.create_publisher(Image, '/metrics/dashboard', 1)
 
         self.create_timer(0.5, self.publish_metrics)      # 2 Hz
         self.create_timer(1.0, self.publish_static_overlay)
@@ -419,25 +426,53 @@ class MetricsMonitor(Node):
         return m
 
     def publish_dashboard(self, rows, speed, dist, cpu, stamp):
+        """Render the health summary as an image for an RViz Image panel.
+
+        RViz2 text markers spread words apart (wide spaces) and clutter the map,
+        so the dashboard is drawn with OpenCV instead.
+        """
         worst = max(lv for _, lv, _, _ in rows)
-        lines = [f'SYSTEM {LEVEL_TXT[worst]}']
-        for name, lv, sm, _ in rows:
-            lines.append(f'[{LEVEL_TXT[lv]:>4}] {name:<9} {sm}')
-        lines.append(f'v {speed:.2f} m/s  d {dist:.1f} m  path {self.path_len:.1f} m')
+        info = [(f'Speed {speed:.2f} m/s', DASH_FG),
+                (f'From start {dist:.1f} m    Path {self.path_len:.1f} m', DASH_FG)]
         if math.isfinite(self.nearest):
-            lines.append(f'nearest obstacle {self.nearest:.2f} m')
+            lv = ERROR if self.nearest < self.cfg['obstacle_error_m'] else \
+                WARN if self.nearest < self.cfg['obstacle_warn_m'] else OK
+            info.append((f'Nearest obstacle {self.nearest:.2f} m', LEVEL_BGR[lv]))
         if psutil:
-            lines.append(f'GCS cpu {cpu:.0f}%')
-        m = self._marker('dashboard', 0, Marker.TEXT_VIEW_FACING, self.base_frame, stamp)
-        m.pose.position.x, m.pose.position.y, m.pose.position.z = self.dash_off
-        m.scale.z = self.dash_h
-        r, g_, b = LEVEL_RGB[worst]
-        m.color = ColorRGBA(r=r, g=g_, b=b, a=1.0)
-        m.text = '\n'.join(lines)
-        m.lifetime = Duration(seconds=2).to_msg()
-        out = MarkerArray()
-        out.markers.append(m)
-        self.marker_pub.publish(out)
+            info.append((f'GCS CPU {cpu:.0f}%', DASH_DIM))
+
+        head_h, row_h, info_h, pad = 64, 46, 40, 18
+        h = head_h + pad + len(rows) * row_h + pad + len(info) * info_h + pad
+        img = np.full((h, DASH_W, 3), DASH_BG, np.uint8)
+
+        # Header bar coloured by the worst status.
+        cv2.rectangle(img, (0, 0), (DASH_W, head_h), LEVEL_BGR[worst], -1)
+        cv2.putText(img, f'SYSTEM {LEVEL_TXT[worst]}', (pad, 45), DASH_FONT, 1.25,
+                    (20, 20, 20), 3, cv2.LINE_AA)
+
+        y = head_h + pad
+        for name, lv, sm, _ in rows:
+            cy = y + row_h // 2
+            cv2.circle(img, (pad + 12, cy), 11, LEVEL_BGR[lv], -1, cv2.LINE_AA)
+            cv2.putText(img, name, (pad + 38, cy + 11), DASH_FONT, 0.95, DASH_FG, 2,
+                        cv2.LINE_AA)
+            cv2.putText(img, sm, (pad + 250, cy + 11), DASH_FONT, 0.85,
+                        LEVEL_BGR[lv] if lv != OK else DASH_DIM, 2, cv2.LINE_AA)
+            y += row_h
+
+        y += pad // 2
+        cv2.line(img, (pad, y), (DASH_W - pad, y), (80, 70, 60), 2)
+        y += pad // 2
+        for text, col in info:
+            cv2.putText(img, text, (pad, y + 30), DASH_FONT, 0.9, col, 2, cv2.LINE_AA)
+            y += info_h
+
+        msg = Image()
+        msg.header.stamp = stamp
+        msg.height, msg.width = img.shape[:2]
+        msg.encoding, msg.is_bigendian, msg.step = 'bgr8', 0, DASH_W * 3
+        msg.data = img.tobytes()
+        self.dash_pub.publish(msg)
 
     def publish_nearest(self, stamp):
         scan = self.last_scan
@@ -475,7 +510,7 @@ class MetricsMonitor(Node):
             t.pose.position.y = rad * 0.7071
             t.scale.z = 0.12
             t.color = ColorRGBA(r=0.75, g=0.85, b=0.95, a=0.8)
-            t.text = f'{rad:g} m'
+            t.text = f'{rad:g}m'  # no space: RViz2 renders spaces very wide
             t.lifetime = Duration(seconds=3).to_msg()
             out.markers.append(t)
         self.marker_pub.publish(out)

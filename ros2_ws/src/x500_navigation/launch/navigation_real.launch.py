@@ -96,12 +96,13 @@ def generate_launch_description():
     )
 
     # 3. Static transform: base_link -> laser_frame (YDLIDAR mount offset)
-    # Adjust x/y/z/yaw to match your physical lidar mounting.
+    # Lidar is mounted directly below base_link (0.15 m down, no x/y offset).
+    # Adjust yaw if the lidar is rotated relative to the airframe.
     static_tf_lidar = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_laser',
-        arguments=['0.12', '0', '0.26', '0', '0', '0', 'base_link', 'laser_frame'],
+        arguments=['0', '0', '-0.15', '0', '0', '0', 'base_link', 'laser_frame'],
         parameters=[{'use_sim_time': use_sim_time}],
     )
 
@@ -180,6 +181,25 @@ def generate_launch_description():
         }.items(),
     )
 
+    # 8. 3D map: stacks 2D lidar slices at the drone's height into /map_3d (PointCloud2).
+    #    Saved as ~/drone_maps/map3d_*.ply on shutdown or via the /map_3d/save service.
+    declare_map3d = DeclareLaunchArgument('map3d', default_value='true',
+                                          description='Build a 3D point cloud from lidar + height')
+    map3d_node = Node(
+        package='gps_denied_bridge',
+        executable='scan_to_3d',
+        name='scan_to_3d',
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('map3d')),
+        parameters=[{
+            'map_frame': 'odom',
+            'voxel_size': 0.05,
+            'min_hits': 2,
+            'max_range': 8.0,
+            'use_sim_time': use_sim_time,
+        }],
+    )
+
     return LaunchDescription([
         declare_camera,
         declare_segmentation,
@@ -191,6 +211,7 @@ def generate_launch_description():
         declare_use_sim_time,
         declare_params_file,
         declare_pi_ip,
+        declare_map3d,
         mavlink_bridge_node,
         lidar_receiver_node,
         static_tf_lidar,
@@ -200,4 +221,5 @@ def generate_launch_description():
         segmentation_launch,
         static_tf_camera,
         viz_launch,
+        map3d_node,
     ])

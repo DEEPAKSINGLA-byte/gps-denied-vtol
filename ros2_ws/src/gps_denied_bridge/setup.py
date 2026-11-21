@@ -29,6 +29,7 @@ setup(
             'lidar_udp_receiver = gps_denied_bridge.lidar_udp_receiver:main',
             'camera_tcp_receiver = gps_denied_bridge.camera_tcp_receiver:main',
             'metrics_monitor = gps_denied_bridge.metrics_monitor:main',
+            'scan_to_3d = gps_denied_bridge.scan_to_3d:main',
         ],
     },
 )
