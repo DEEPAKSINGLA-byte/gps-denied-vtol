@@ -29,12 +29,15 @@ LETHAL (100) in the local costmap. ~1.0 means the costmap faithfully reproduces 
 the lidar sees; drops reveal TF/timing problems or dropped scans.
 """
 
+import array
 import math
+import signal
 import time
 
 import cv2
 import numpy as np
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
@@ -471,7 +474,11 @@ class MetricsMonitor(Node):
         msg.header.stamp = stamp
         msg.height, msg.width = img.shape[:2]
         msg.encoding, msg.is_bigendian, msg.step = 'bgr8', 0, DASH_W * 3
-        msg.data = img.tobytes()
+        # array.array, not bytes: rclpy validates a bytes value element by element in
+        # Python (~80 ms for this image, stalling every other callback of this node).
+        buf = array.array('B')
+        buf.frombytes(img.tobytes())
+        msg.data = buf
         self.dash_pub.publish(msg)
 
     def publish_nearest(self, stamp):
@@ -521,11 +528,13 @@ def main(args=None):
     node = MetricsMonitor()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)   # 2nd Ctrl-C: no traceback
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():   # SIGINT already shut the context down
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

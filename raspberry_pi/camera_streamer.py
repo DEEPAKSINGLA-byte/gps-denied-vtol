@@ -114,8 +114,9 @@ class CameraCaptureThread:
     and automatically re-opens the camera when re-plugged into any port.
     """
     def __init__(self, device=None, width: int = 640, height: int = 480,
-                 passthrough: bool = False, fps: float = 30.0):
+                 passthrough: bool = False, fps: float = 30.0, usb_reset: bool = False):
         self.device = device
+        self.usb_reset = usb_reset
         self.width = width
         self.height = height
         self.passthrough = passthrough
@@ -150,12 +151,15 @@ class CameraCaptureThread:
                 time.sleep(0.5)
                 fail_attempts += 1
 
-                # If camera is missing for > 3s, reset Raspberry Pi USB controller to clear error -71
-                if fail_attempts % 6 == 0:
+                # Opt-in (--usb-reset): if the camera is missing for > 3 s, unbind/rebind the
+                # Pi 4 USB controller to clear UVC error -71. That controller also carries the
+                # Pixhawk and the LiDAR, so this drops THEIR links too - never do it by default
+                # (with the camera unplugged it would cut the flight-controller link every 3 s).
+                if self.usb_reset and fail_attempts % 6 == 0:
                     try:
                         print("\n[!] Camera device missing. Power-cycling Raspberry Pi USB hub to clear enumeration locks...")
                         subprocess.run(
-                            "echo '0000:01:00.0' | sudo tee /sys/bus/pci/drivers/xhci_hcd/unbind >/dev/null && sleep 0.5 && echo '0000:01:00.0' | sudo tee /sys/bus/pci/drivers/xhci_hcd/bind >/dev/null",
+                            "echo '0000:01:00.0' | sudo -n tee /sys/bus/pci/drivers/xhci_hcd/unbind >/dev/null && sleep 0.5 && echo '0000:01:00.0' | sudo -n tee /sys/bus/pci/drivers/xhci_hcd/bind >/dev/null",
                             shell=True, timeout=3
                         )
                         time.sleep(1.0)
@@ -280,6 +284,31 @@ def send_frame(sock: socket.socket, frame: np.ndarray, frame_id: int, mode: str 
         return False
 
 
+def _new_stream_socket() -> socket.socket:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    # NOTSENT_LOWAT: the socket only reports writable once the previous frame has
+    # (almost) left the host, so we can drop frames instead of queueing them.
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 131072)
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, "TCP_NOTSENT_LOWAT", 25), 16384)
+    except OSError:
+        pass
+    try:
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 0x88)  # DSCP AF41 -> WMM video
+    except OSError:
+        pass
+    try:
+        # Abort the connection if sent data stays un-ACKed for 3 s (Wi-Fi gone). Without
+        # this a silently dead link is only noticed after the kernel's ~15 min
+        # retransmission timeout: select() never reports the socket writable again, so
+        # every frame is "dropped" and the streamer never reconnects.
+        sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, "TCP_USER_TIMEOUT", 18), 3000)
+    except OSError:
+        pass
+    return sock
+
+
 def run_streamer(
     target_ip: str,
     port: int = 5000,
@@ -291,6 +320,7 @@ def run_streamer(
     width: int = 640,
     height: int = 480,
     passthrough: bool = False,
+    usb_reset: bool = False,
 ):
     if isinstance(device, str) and device.isdigit():
         device = int(device)
@@ -309,38 +339,29 @@ def run_streamer(
 
     # Initialize resilient background grabber thread with auto-hotplug recovery
     grabber = CameraCaptureThread(device=device, width=width, height=height,
-                                  passthrough=passthrough, fps=fps_limit)
+                                  passthrough=passthrough, fps=fps_limit, usb_reset=usb_reset)
     time.sleep(0.3)
 
     interval = 1.0 / max(fps_limit, 1.0)
 
     try:
         while True:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            # NOTSENT_LOWAT: the socket only reports writable once the previous frame has
-            # (almost) left the host, so we can drop frames instead of queueing them.
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 131072)
-            try:
-                sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, "TCP_NOTSENT_LOWAT", 25), 16384)
-            except OSError:
-                pass
-            try:
-                sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 0x88)  # DSCP AF41 -> WMM video
-            except OSError:
-                pass
-
             connected = False
             first_attempt = True
             while not connected:
+                # A fresh socket per attempt: after a timed-out connect() the old one is
+                # still "connecting" and any retry on it fails with EALREADY.
+                sock = _new_stream_socket()
                 try:
+                    sock.settimeout(3.0)          # don't hang ~2 min on an absent laptop
                     sock.connect((target_ip, port))
+                    sock.settimeout(None)         # blocking sends (select() gates them)
                     connected = True
                     print(f"\n[+] TCP connection established with Ground Station at {target_ip}:{port}!")
                 except Exception as e:
+                    sock.close()
                     if snapshot:
                         print(f"[FAILED] Could not connect to {target_ip}:{port}: {e}")
-                        sock.close()
                         sys.exit(1)  # outer finally stops the grabber
                     if first_attempt:
                         print(f"Waiting for Ground Station receiver at {target_ip}:{port} (retrying every 1s)...")
@@ -423,6 +444,9 @@ def main():
     parser.add_argument("--fps", type=float, default=30.0, help="Maximum stream FPS limit (default: 30.0)")
     parser.add_argument("--width", type=int, default=640, help="Capture width (default: 640)")
     parser.add_argument("--height", type=int, default=480, help="Capture height (default: 480)")
+    parser.add_argument("--usb-reset", action="store_true",
+                        help="If the camera disappears, reset the Pi 4 USB controller to recover it. "
+                             "WARNING: this also disconnects the Pixhawk and LiDAR if they are on USB")
     parser.add_argument("--passthrough", action="store_true",
                         help="Send the camera's own MJPEG frames untouched (lowest Pi CPU/latency; "
                              "--quality is ignored, frames may be larger)")
@@ -441,6 +465,7 @@ def main():
         width=args.width,
         height=args.height,
         passthrough=args.passthrough,
+        usb_reset=args.usb_reset,
     )
 
 

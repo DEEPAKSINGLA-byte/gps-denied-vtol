@@ -31,11 +31,13 @@ Nav2 goes quiet. Packets are DSCP CS6 marked (Wi-Fi WMM voice queue).
 import json
 import math
 import os
+import signal
 import socket
 import threading
 import time
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
@@ -55,6 +57,11 @@ class MavlinkCmdBridge(Node):
         self.declare_parameter('max_xy_speed_mps', 0.5)         # safety speed clamp
         self.declare_parameter('auto_arm', False)               # auto-arm on first cmd
         self.declare_parameter('auto_guided', True)             # auto-switch to GUIDED
+        # GUIDED/ARM are requested when Nav2 STARTS commanding motion (not at launch, when the
+        # Pi may still be offline and the packet would be lost), once per command session.
+        # A new session begins after Nav2 has been quiet this long, so a pilot who switches
+        # out of GUIDED mid-mission is not overridden while the same goal is still running.
+        self.declare_parameter('session_gap_s', 3.0)
 
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.pi_ip = str(self.get_parameter('pi_ip').value)
@@ -64,6 +71,7 @@ class MavlinkCmdBridge(Node):
         self.max_xy_speed = float(self.get_parameter('max_xy_speed_mps').value)
         self.auto_arm = bool(self.get_parameter('auto_arm').value)
         self.auto_guided = bool(self.get_parameter('auto_guided').value)
+        self.session_gap_s = float(self.get_parameter('session_gap_s').value)
 
         # ---------------- State ----------------
         self.lock = threading.Lock()
@@ -72,6 +80,7 @@ class MavlinkCmdBridge(Node):
         self.mode_sent = False
         self.arm_sent = False
         self.velocity_streaming = False
+        self._last_motion = None   # monotonic time of the last fresh non-zero command
 
         # ---------------- QoS ----------------
         qos_cmd = QoSProfile(
@@ -147,8 +156,6 @@ class MavlinkCmdBridge(Node):
         with self.lock:
             cmd = self.last_cmd
             fresh = self._cmd_is_fresh()
-            mode_sent = self.mode_sent
-            arm_sent = self.arm_sent
             vx = float(cmd.linear.x)
             vy = float(cmd.linear.y)
             vz = float(cmd.linear.z)
@@ -163,21 +170,27 @@ class MavlinkCmdBridge(Node):
 
         # Clamp horizontal speed for safety
         vx, vy = self._clamp_xy(vx, vy)
+        moving = abs(vx) > 1e-3 or abs(vy) > 1e-3 or abs(vz) > 1e-3 or abs(yaw_rate) > 1e-3
 
-        # One-time: switch to GUIDED mode
-        if self.auto_guided and not mode_sent:
-            self._send_discrete({'action': 'set_mode', 'mode': 'GUIDED'})
-            self.mode_sent = True
-            self.get_logger().info('Sent SET_MODE GUIDED to Pixhawk')
-
-        # One-time: arm
-        if self.auto_arm and not arm_sent and self.mode_sent:
-            self._send_discrete({'action': 'arm', 'force': True})
-            self.arm_sent = True
-            self.get_logger().info('Sent ARM to Pixhawk')
+        now = time.monotonic()
+        if moving:
+            self._last_motion = now
+            # Start of a command session: GUIDED first, then (opt-in) ARM. The Pi listener
+            # handles them in order and only forwards velocity while armed in GUIDED.
+            if self.auto_guided and not self.mode_sent:
+                self._send_discrete({'action': 'set_mode', 'mode': 'GUIDED'})
+                self.mode_sent = True
+                self.get_logger().info('Nav2 started commanding: sent SET_MODE GUIDED to Pixhawk')
+            if self.auto_arm and not self.arm_sent:
+                self._send_discrete({'action': 'arm', 'force': True})
+                self.arm_sent = True
+                self.get_logger().info('Sent ARM to Pixhawk')
+        elif (self.mode_sent or self.arm_sent) and self._last_motion is not None \
+                and now - self._last_motion > self.session_gap_s:
+            self.mode_sent = self.arm_sent = False   # next motion = new session
 
         # Continuous velocity setpoint
-        if abs(vx) > 1e-3 or abs(vy) > 1e-3 or abs(vz) > 1e-3 or abs(yaw_rate) > 1e-3:
+        if moving:
             if not self.velocity_streaming:
                 self.get_logger().info('Streaming velocity setpoints to Pixhawk')
                 self.velocity_streaming = True
@@ -222,11 +235,13 @@ def main(args=None):
     node = MavlinkCmdBridge()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)   # 2nd Ctrl-C: no traceback
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():   # SIGINT already shut the context down
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

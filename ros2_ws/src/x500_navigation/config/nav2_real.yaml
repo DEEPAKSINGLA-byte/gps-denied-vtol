@@ -99,7 +99,11 @@ controller_server:
       plugin: "nav2_controller::SimpleGoalChecker"
       stateful: true
       xy_goal_tolerance: 0.20
-      yaw_goal_tolerance: 0.30
+      # Yaw is NOT controlled (FollowPath max_vel_theta = 0: the drone translates and keeps
+      # its heading), so a yaw check could never pass unless the goal arrow happened to
+      # match the current heading - the goal would hang, fail progress, and spin/abort.
+      # > pi disables it.
+      yaw_goal_tolerance: 3.15
 
     FollowPath:
       plugin: "dwb_core::DWBLocalPlanner"

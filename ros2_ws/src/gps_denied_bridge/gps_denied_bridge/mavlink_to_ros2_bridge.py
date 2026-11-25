@@ -34,11 +34,13 @@ during a Wi-Fi dropout.
 import collections
 import json
 import math
+import signal
 import socket
 import threading
 import time
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
@@ -148,7 +150,17 @@ class MavlinkToRos2Bridge(Node):
             depth=10,
         )
 
-        self.odom_pub = self.create_publisher(Odometry, '/odom', qos_sensor)
+        # /odom must be RELIABLE: Nav2's controller_server and bt_navigator subscribe with
+        # RELIABLE QoS, and a BEST_EFFORT publisher is incompatible with them (DDS delivers
+        # nothing - DWB then always assumes the drone is at rest). A RELIABLE publisher
+        # still serves BEST_EFFORT subscribers (RViz, metrics_monitor).
+        qos_odom = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+        )
+        self.odom_pub = self.create_publisher(Odometry, '/odom', qos_odom)
         self.flow_pub = self.create_publisher(
             Vector3Stamped, '/drone/optical_flow', qos_sensor
         )
@@ -530,11 +542,13 @@ def main(args=None):
     node = MavlinkToRos2Bridge()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)   # 2nd Ctrl-C: no traceback
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():   # SIGINT already shut the context down
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

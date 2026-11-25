@@ -24,7 +24,7 @@ setup(
     maintainer_email='239532455+deepaksingla8059924923-byte@users.noreply.github.com',
     description='Navigation configuration and launch files for x500 PX4 drone',
     license='Apache-2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
         ],

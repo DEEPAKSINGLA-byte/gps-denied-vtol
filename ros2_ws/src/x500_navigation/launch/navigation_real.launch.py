@@ -13,6 +13,21 @@ from ament_index_python.packages import get_package_share_directory
 DEFAULT_PI_IP = os.environ.get('GPS_DENIED_PI_IP', '10.184.3.36')
 
 
+def _weights(name):
+    """Absolute path of a model file kept in the workspace root (ros2_ws/), if present.
+
+    Ultralytics resolves a bare name like 'yolov8n-seg.pt' against the CURRENT directory,
+    so launching from anywhere but ros2_ws/ re-downloads ~80 MB of weights - and the
+    segmentation node crashes when the laptop has no internet (e.g. on the drone hotspot).
+    """
+    share = get_package_share_directory('x500_navigation')   # <ws>/install/x500_navigation/share/x500_navigation
+    for ws in (os.path.normpath(os.path.join(share, '..', '..', '..', '..')), os.getcwd()):
+        path = os.path.join(ws, name)
+        if os.path.isfile(path):
+            return path
+    return name   # let Ultralytics find / download it
+
+
 def generate_launch_description():
     # Launch arguments
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
@@ -30,7 +45,7 @@ def generate_launch_description():
         description='Run YOLOv8 segmentation on /camera/image_raw (GPU) -> /segmentation/*'
     )
     declare_seg_model = DeclareLaunchArgument(
-        'seg_model', default_value='yolov8n-seg.pt',
+        'seg_model', default_value=_weights('yolov8n-seg.pt'),
         description='Segmentation weights (path, or a name Ultralytics downloads)'
     )
     # 768 px measured on the real drone: 36 ms inference / 46 ms capture->result vs
@@ -40,9 +55,12 @@ def generate_launch_description():
         description='SAM input size for segmentation (768 = lower latency, 1024 = sharpest)'
     )
     declare_seg_sam_model = DeclareLaunchArgument(
-        'seg_sam_model', default_value='sam2.1_t.pt',
+        'seg_sam_model', default_value=_weights('sam2.1_t.pt'),
         description="SAM weights for segmentation; 'none' = YOLO masks only"
     )
+    # Case-insensitive (camera:=True / segmentation:=False also work); evaluates to True/False.
+    seg_enabled = PythonExpression(
+        ["'", camera, "'.lower() == 'true' and '", segmentation, "'.lower() == 'true'"])
     declare_rviz = DeclareLaunchArgument('rviz', default_value='true',
                                          description='Open RViz2 with the validation layout')
     declare_metrics = DeclareLaunchArgument('metrics', default_value='true',
@@ -163,8 +181,7 @@ def generate_launch_description():
         launch_arguments={'model': LaunchConfiguration('seg_model'),
                           'sam_imgsz': LaunchConfiguration('seg_sam_imgsz'),
                           'sam_model': LaunchConfiguration('seg_sam_model')}.items(),
-        condition=IfCondition(PythonExpression(
-            ["'", camera, "' == 'true' and '", segmentation, "' == 'true'"])),
+        condition=IfCondition(seg_enabled),
     )
 
     # 7. RViz2 + metrics monitor
@@ -176,8 +193,7 @@ def generate_launch_description():
             'rviz': LaunchConfiguration('rviz'),
             'metrics': LaunchConfiguration('metrics'),
             'expect_camera': camera,
-            'expect_segmentation': PythonExpression(
-                ["'", camera, "' == 'true' and '", segmentation, "' == 'true'"]),
+            'expect_segmentation': seg_enabled,
         }.items(),
     )
 

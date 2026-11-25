@@ -13,7 +13,8 @@ Starts and supervises (auto-restart with back-off if one crashes):
                 telemetry process's Pixhawk connection (no serial-port conflict).
 
 Ctrl-C stops everything. Use --no-lidar / --no-camera / --no-telemetry to skip a stream.
-If the target IP is omitted, the SSH client IP is used when run over ssh.
+If the target IP is omitted, the SSH client IP is used when run over ssh, otherwise
+the default gateway (the laptop, when the Pi is on the laptop's hotspot).
 
 Latency: Wi-Fi power saving is switched OFF on the interface that routes to the laptop
 (re-checked every 30 s, since a reconnect can turn it back on). With it on, the Pi's radio
@@ -50,8 +51,9 @@ def log(tag, msg):
 
 
 class Service:
-    def __init__(self, name, cmd, stop_event):
+    def __init__(self, name, cmd, stop_event, env=None):
         self.name, self.cmd, self.stop_event = name, cmd, stop_event
+        self.env = env
         self.proc = None
         self.thread = threading.Thread(target=self._run, daemon=True, name=name)
 
@@ -63,7 +65,9 @@ class Service:
         buf, last_status = b'', 0.0
         fd = proc.stdout
         while True:
-            ch = fd.read1(4096) if hasattr(fd, 'read1') else fd.read(1)
+            # bufsize=0 gives a raw FileIO (no read1); its read(n) already returns
+            # whatever is available, so do not fall back to one byte per syscall.
+            ch = fd.read1(4096) if hasattr(fd, 'read1') else fd.read(4096)
             if not ch:
                 break
             buf += ch
@@ -89,7 +93,7 @@ class Service:
             log('stack', f"starting {self.name}: {' '.join(self.cmd[1:])}")
             self.proc = subprocess.Popen(
                 self.cmd, cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                bufsize=0, preexec_fn=os.setsid)
+                bufsize=0, preexec_fn=os.setsid, env=self.env)
             self._pump(self.proc)
             rc = self.proc.wait()
             if self.stop_event.is_set():
@@ -248,13 +252,23 @@ def unsync_clock_from(ip):
 
 
 def default_ip():
+    """Laptop IP: the SSH client when run over ssh, else the default gateway (the laptop
+    when the Pi is on the laptop's hotspot, e.g. 10.42.0.1 with NetworkManager sharing)."""
     c = os.environ.get('SSH_CLIENT')
-    return c.split()[0] if c else None
+    if c:
+        return c.split()[0]
+    try:
+        out = subprocess.run(['ip', '-4', 'route', 'show', 'default'], capture_output=True,
+                             text=True, timeout=2).stdout.split()
+        return out[out.index('via') + 1] if 'via' in out else None
+    except (OSError, ValueError, IndexError, subprocess.SubprocessError):
+        return None
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('target_ip', nargs='?', default=default_ip(), help='Laptop IP (default: SSH client IP)')
+    ap.add_argument('target_ip', nargs='?', default=None,
+                    help='Laptop IP (default: SSH client IP, else the default gateway)')
     ap.add_argument('--no-telemetry', action='store_true')
     ap.add_argument('--no-lidar', action='store_true')
     ap.add_argument('--no-camera', action='store_true')
@@ -270,6 +284,9 @@ def main():
                     help='Camera resolution WxH (e.g. 424x240 for less Wi-Fi load)')
     ap.add_argument('--camera-passthrough', action='store_true',
                     help="Forward the camera's MJPEG untouched (no re-encode on the Pi)")
+    ap.add_argument('--camera-usb-reset', action='store_true',
+                    help='Let the camera streamer reset the Pi 4 USB controller when the camera '
+                         'vanishes (WARNING: also drops the Pixhawk/LiDAR USB links)')
     ap.add_argument('--no-time-sync', action='store_true',
                     help="Don't sync the Pi clock to the laptop (chrony)")
     ap.add_argument('--keep-powersave', action='store_true',
@@ -279,7 +296,11 @@ def main():
     args = ap.parse_args()
 
     if not args.target_ip:
-        ap.error('target_ip required (could not infer it from SSH_CLIENT)')
+        args.target_ip = default_ip()
+        if not args.target_ip:
+            ap.error('target_ip required (could not infer it from SSH_CLIENT or the default route)')
+        log('stack', f"laptop IP not given; using {args.target_ip} "
+                     f"({'SSH client' if os.environ.get('SSH_CLIENT') else 'default gateway'})")
 
     py = [sys.executable, '-u']
     ip = args.target_ip
@@ -305,6 +326,8 @@ def main():
         cmds['camera'] += ['--width', cw, '--height', ch]
         if args.camera_passthrough:
             cmds['camera'].append('--passthrough')
+        if args.camera_usb_reset:
+            cmds['camera'].append('--usb-reset')
         if args.camera_device.startswith('/dev/') and not os.path.exists(args.camera_device):
             log('stack', f"WARNING: {args.camera_device} not found - camera will retry until it appears")
     if not cmds:
@@ -317,7 +340,10 @@ def main():
     log('stack', f"streaming {', '.join(cmds)} -> {ip}   (Ctrl-C to stop)")
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())   # systemd / pkill -> clean shutdown
-    services = [Service(n, c, stop) for n, c in cmds.items()]
+    envs = {}
+    if 'lidar' in cmds:   # Pixhawk auto-detection must never probe the LiDAR's serial port
+        envs['telemetry'] = dict(os.environ, GPS_DENIED_EXCLUDE_PORTS=args.lidar_port)
+    services = [Service(n, c, stop, envs.get(n)) for n, c in cmds.items()]
     for s in services:
         s.start()
         time.sleep(1.0)   # stagger so the Pixhawk link comes up first

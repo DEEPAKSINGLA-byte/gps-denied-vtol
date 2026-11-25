@@ -176,6 +176,14 @@ class PixhawkVehicle:
         if os.path.exists("/dev/ttyAMA0"):
             candidates.append("/dev/ttyAMA0")
 
+        # Never probe other devices' serial ports: opening the LiDAR's /dev/ttyUSB0 at
+        # 115200 and reading it for 1.5 s steals its scan data (and toggles DTR/RTS).
+        # start_streams.py lists them in GPS_DENIED_EXCLUDE_PORTS (':'-separated).
+        excluded = {os.path.realpath(p) for p in
+                    os.environ.get("GPS_DENIED_EXCLUDE_PORTS", "").split(":") if p}
+        candidates = [p for p in dict.fromkeys(candidates)
+                      if os.path.realpath(p) not in excluded]
+
         # Test each candidate
         for port in candidates:
             try:
@@ -224,8 +232,19 @@ class PixhawkVehicle:
             self.is_connected = False
             return False
 
-        self.target_system = self.master.target_system
-        self.target_component = self.master.target_component
+        # The first heartbeat may come from another component (GCS, gimbal, OSD, ...):
+        # wait for the autopilot's own one.
+        deadline = time.time() + self.timeout
+        while not self._is_autopilot_heartbeat(hb) and time.time() < deadline:
+            hb = self.master.recv_match(type="HEARTBEAT", blocking=True, timeout=1.0) or hb
+        # Take the IDs from the autopilot's heartbeat itself. pymavlink only learns the
+        # SYSTEM id from heartbeats - master.target_component stays 0 - and the telemetry
+        # thread drops heartbeats whose source != (target_system, target_component), so a
+        # 0 here froze armed/flight_mode at their connect-time values forever.
+        self.target_system = hb.get_srcSystem()
+        self.target_component = hb.get_srcComponent()
+        self.master.target_system = self.target_system
+        self.master.target_component = self.target_component
         self.autopilot_type = self.AUTOPILOT_MAP.get(hb.autopilot, f"Autopilot ID {hb.autopilot}")
         self.vehicle_type = self.VEHICLE_TYPE_MAP.get(hb.type, f"Type ID {hb.type}")
         self.is_connected = True
@@ -245,6 +264,14 @@ class PixhawkVehicle:
         # Start background telemetry receiver
         self.start_telemetry_thread()
         return True
+
+    @staticmethod
+    def _is_autopilot_heartbeat(hb) -> bool:
+        return (hb is not None
+                and hb.autopilot != mavutil.mavlink.MAV_AUTOPILOT_INVALID
+                and hb.type not in (mavutil.mavlink.MAV_TYPE_GCS,
+                                    mavutil.mavlink.MAV_TYPE_GIMBAL,
+                                    mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER))
 
     def disconnect(self):
         """
@@ -407,22 +434,41 @@ class PixhawkVehicle:
                 time.sleep(0.05)
 
     def _try_reenumerate(self) -> bool:
-        """If the serial device disappeared, find the Pixhawk again and reopen it."""
+        """The link has been silent for > 4 s (the autopilot sends HEARTBEAT at 1 Hz):
+        re-open it. Also when the device path still exists - after a quick USB
+        re-enumeration /dev/pixhawk (or ttyACM0) is back, but our file descriptor
+        belongs to the vanished device and would never deliver data again."""
+        now = time.monotonic()
+        if now - getattr(self, "_last_reopen", 0.0) < 3.0:
+            return False
+        self._last_reopen = now
         if self.connection_str and os.path.exists(self.connection_str):
-            return False
-        logger.warning("Device %s disappeared! Scanning for new port...", self.connection_str)
-        detected = self.detect_serial_port()
-        if not detected:
-            return False
-        logger.info("Found re-enumerated Pixhawk on %s! Reconnecting...", detected)
-        self.connection_str = detected
+            logger.warning("No MAVLink data from %s for > 4 s; re-opening the port...",
+                           self.connection_str)
+            port = self.connection_str
+        else:
+            logger.warning("Device %s disappeared! Scanning for new port...", self.connection_str)
+            port = None
         try:
             self.master.close()
         except Exception:
             pass
-        self.master = mavutil.mavlink_connection(
-            self.connection_str, baud=self.baud, source_system=255, source_component=0)
-        self.master.wait_heartbeat(timeout=3.0)
+        if port is None:
+            port = self.detect_serial_port()
+            if not port:
+                return False
+            logger.info("Found re-enumerated Pixhawk on %s! Reconnecting...", port)
+            self.connection_str = port
+        try:
+            self.master = mavutil.mavlink_connection(
+                port, baud=self.baud, source_system=255, source_component=0)
+        except Exception as e:
+            logger.warning("Re-open of %s failed: %s", port, e)
+            return False
+        if not self.master.wait_heartbeat(timeout=3.0):
+            logger.warning("Re-opened %s but no heartbeat yet; will retry", port)
+            return False
+        logger.info("Pixhawk link restored on %s", port)
         self.request_data_streams(rate_hz=10)
         return True
 

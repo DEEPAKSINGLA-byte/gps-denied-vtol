@@ -10,6 +10,7 @@ them to LaserScan messages for Nav2 costmap consumption.
 """
 
 import math
+import signal
 import socket
 import json
 import struct
@@ -18,6 +19,7 @@ import threading
 import numpy as np
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
@@ -174,11 +176,13 @@ def main(args=None):
     node = LidarUDPReceiverNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)   # 2nd Ctrl-C: no traceback
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():   # SIGINT already shut the context down
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

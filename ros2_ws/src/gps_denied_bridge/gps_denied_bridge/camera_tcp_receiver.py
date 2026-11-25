@@ -28,11 +28,13 @@ import json
 import time
 import threading
 import array
+import signal
 
 import cv2
 import numpy as np
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image
@@ -206,6 +208,10 @@ class CameraROS2Receiver(Node):
             '>II', header
         )
 
+        # A desynchronised / foreign stream would otherwise allocate up to 4 GB here.
+        if meta_len > 65536 or payload_len > 64 * 1024 * 1024:
+            raise ValueError(f'bad frame header (meta {meta_len} B, payload {payload_len} B)')
+
         # Read metadata
 
         meta_bytes = self.recv_all(sock, meta_len)
@@ -357,7 +363,9 @@ class CameraROS2Receiver(Node):
                     f"Camera connected: {address[0]}"
                 )
 
-                client_sock.settimeout(10.0)
+                # The Pi sends 10-30 frames/s; 3 s of silence means a dead link. Drop it
+                # so the Pi's reconnect is accepted (listen backlog is only 1).
+                client_sock.settimeout(3.0)
 
                 # ---------------------------------------
                 # CONTINUOUS FRAME RECEPTION (network only)
@@ -480,15 +488,17 @@ def main(args=None):
 
         rclpy.spin(node)
 
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
 
         pass
 
     finally:
 
+        signal.signal(signal.SIGINT, signal.SIG_IGN)   # 2nd Ctrl-C: no traceback
         node.destroy_node()
 
-        rclpy.shutdown()
+        if rclpy.ok():   # SIGINT already shut the context down
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

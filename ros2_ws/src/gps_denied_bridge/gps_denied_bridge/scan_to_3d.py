@@ -25,6 +25,7 @@ over long flights.
 import collections
 import math
 import os
+import signal
 import time
 
 import numpy as np
@@ -236,6 +237,9 @@ def main(args=None):
     except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
+        # Ctrl-C reaches this process twice (terminal + ros2 launch forwarding it); a
+        # second SIGINT during the save would abort it and lose the map.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         if node.save_on_shutdown:
             out = node.save()
             if out:
