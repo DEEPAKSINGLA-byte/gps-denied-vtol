@@ -77,4 +77,5 @@ benchmarking/            generated charts
 
 [Design documents (Google Drive)](https://drive.google.com/drive/folders/1eQoDXTlVj3ZABpU9uxMFRTQ5T66ZaTJB?usp=sharing) ·
 [Segmentation demo video](https://youtu.be/XxDwwBQxVR0) · Contributions welcome (one branch per
-feature) · License: not chosen yet.
+feature) · License: software under the [MIT License](LICENSE), hardware documentation under
+[CERN-OHL-P v2](LICENSE-HARDWARE).

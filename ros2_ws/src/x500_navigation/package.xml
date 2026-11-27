@@ -5,7 +5,7 @@
   <version>0.1.0</version>
   <description>Navigation configuration and launch files for x500 PX4 drone</description>
   <maintainer email="239532455+deepaksingla8059924923-byte@users.noreply.github.com">deepak</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>

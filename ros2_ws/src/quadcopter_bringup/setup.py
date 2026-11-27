@@ -19,7 +19,7 @@ setup(
     maintainer='remandey',
     maintainer_email='reman.airport@gmail.com',
     description='TODO: Package description',
-    license='TODO: License declaration',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',

@@ -39,7 +39,6 @@ All in-text TODOs are resolved. Still open:
 
 - the corresponding author (name and e-mail) in `main.tex`
 - a DOI for an archived release (Zenodo/OSF), promised in the specifications table
-- adding `LICENSE` files (MIT for software, CERN-OHL-P v2 for hardware) to the repository, to match the licence stated in the report
 
 Real-vehicle results are a 7-minute hover (1.6 m drift, measured against ground marks) and an
 autonomous square-path flight without an external reference; trajectory accuracy against ground

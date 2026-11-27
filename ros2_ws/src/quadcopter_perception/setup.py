@@ -19,7 +19,7 @@ setup(
     maintainer='remandey',
     maintainer_email='reman.airport@gmail.com',
     description='YOLO + SAM instance segmentation of the drone camera stream (ROS 2)',
-    license='TODO: License declaration',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',

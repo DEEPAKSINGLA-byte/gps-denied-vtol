@@ -5,7 +5,7 @@
   <version>0.0.0</version>
   <description>YOLO + SAM instance segmentation of the drone camera stream (ROS 2)</description>
   <maintainer email="reman.airport@gmail.com">remandey</maintainer>
-  <license>TODO: License declaration</license>
+  <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>

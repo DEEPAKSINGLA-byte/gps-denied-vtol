@@ -38,3 +38,13 @@ raspberry_pi/segmented_*.jpg
 raspberry_pi/mask_overlay.jpg
 *.pt
 raspberry_pi/plotjuggler_live.csv
+
+# LaTeX build artefacts (report/main.pdf is kept)
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.fdb_latexmk
+report/*.fls
+report/*.log
+report/*.out
+report/*.spl

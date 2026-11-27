@@ -19,7 +19,7 @@ setup(
     maintainer='remandey',
     maintainer_email='reman.airport@gmail.com',
     description='Visual-inertial odometry bridge and state estimation for GPS-denied UAV navigation',
-    license='BSD-3-Clause',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',

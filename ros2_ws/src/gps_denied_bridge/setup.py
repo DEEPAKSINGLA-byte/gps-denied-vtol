@@ -16,7 +16,7 @@ setup(
     maintainer='remandey',
     maintainer_email='reman.airport@gmail.com',
     description='ROS 2 bridge for GPS-denied UAV navigation',
-    license='BSD-3-Clause',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',
