@@ -1,0 +1,123 @@
+%% ---------------------------------------------------------------------
+\section{Build instructions}
+\label{sec:build}
+
+\noindent\fcolorbox{red!60!black}{red!5}{\parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule}{\small
+\textbf{Safety.} Remove all propellers during assembly and bench testing. Never power
+the motors with the companion computer connected for the first time. Check the RC
+override and failsafes before every autonomous flight. Lithium-polymer batteries
+must be charged and stored per the manufacturer's instructions.}}
+
+\subsection{Mechanical integration}
+\label{sec:build-mech}
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item Mount the flight controller on vibration isolation at the airframe's centre
+    of gravity, arrow forward, as for any ArduPilot build. Confirm normal manual
+    flight \emph{before} adding the companion.
+  \item Mount the Raspberry Pi where its USB ports are reachable and it receives
+    airflow. A Pi under sustained load needs a heatsink.
+  \item Mount the YDLIDAR G2 with an unobstructed horizontal field of view. Propeller
+    arms and landing gear in the scan plane appear as permanent obstacles. Returns
+    closer than \SI{0.10}{\metre} (costmap) and \SI{0.12}{\metre} (streamer) are
+    rejected, but larger airframe parts must be kept out of the plane or masked.
+    Record the mount offset (\cref{sec:build-calib}).
+  \item Mount the downward optical-flow/range module with a clear view of the floor,
+    away from propeller downwash and legs, oriented per ArduPilot's
+    \code{FLOW_ORIENT_YAW} convention.
+  \item Mount the camera facing forward and record its offset.
+  \item Route the USB cables with strain relief. A connector that is pulled loose in
+    flight removes that sensor; the supervisor restarts the stream when the device
+    returns.
+\end{enumerate}
+
+\subsection{Electrical integration}
+
+Follow \cref{fig:wiring}. Connect the autopilot to the Pi by USB (simplest and
+recommended). Connect the LiDAR adapter and camera to the Pi's other USB ports. Supply
+the Pi from a dedicated \SI{5}{\volt} regulator rated at least \SI{3}{\ampere}. The
+flow/range module and RC receiver connect to the autopilot as documented by
+ArduPilot.
+
+\subsection{Companion computer provisioning}
+
+On the Pi, which needs only the \code{raspberry_pi/} directory:
+\begin{lstlisting}[language=bash]
+# from the laptop: copy code (repeat after every change)
+rsync -av --exclude '*.pt' --exclude '__pycache__' \
+  ~/gps-denied-vtol/raspberry_pi/ <user>@<pi_ip>:~/raspberry_pi/
+
+# on the Pi
+cd ~/raspberry_pi
+sudo apt install -y python3-opencv python3-numpy
+pip install -r requirements.txt --break-system-packages
+sudo ./setup_pi.sh            # udev rules, dialout, chrony, iw, sudoers entries
+# log out and in once, then verify:
+ls -la /dev/pixhawk /dev/camera /dev/ttyUSB0
+python3 test_connection.py    # must end with [PASSED]
+\end{lstlisting}
+Other autopilot or camera models are supported by adding their USB vendor/product IDs
+to \code{99-pixhawk.rules} or \code{98-camera.rules}.
+
+\subsection{Ground computer provisioning}
+
+Requirements: Ubuntu 22.04, ROS~2 Humble and an NVIDIA GPU.
+\begin{lstlisting}[language=bash]
+sudo apt install -y python3-colcon-common-extensions python3-rosdep
+sudo rosdep init; rosdep update
+git clone https://github.com/DEEPAKSINGLA-byte/gps-denied-vtol.git ~/gps-denied-vtol
+cd ~/gps-denied-vtol/ros2_ws && source /opt/ros/humble/setup.bash
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --symlink-install
+pip install -U ultralytics                 # YOLO + SAM
+
+# disable Wi-Fi power saving and serve time to the Pi
+printf '[connection]\nwifi.powersave = 2\n' | \
+  sudo tee /etc/NetworkManager/conf.d/wifi-powersave-off.conf
+sudo systemctl restart NetworkManager
+sudo ~/gps-denied-vtol/scripts/setup_laptop_timeserver.sh
+\end{lstlisting}
+Model weights (\code{yolov8n-seg.pt}, \code{sam2.1_t.pt}) are resolved from the
+workspace root, so they are not re-downloaded at every launch. A laptop connected to
+the drone's hotspot is usually offline, and the segmentation node would otherwise
+fail. Connect Pi and laptop directly (e.g.\ a \SI{5}{\giga\hertz} laptop hotspot).
+Relaying through a phone hotspot sends each packet over the air twice.
+
+\subsection{Autopilot configuration}
+
+\begin{table}[H]
+\centering\small
+\caption{ArduPilot parameters for indoor GPS-denied operation (\code{docs/SETUP.md}).}
+\label{tab:apparams}
+\begin{tabularx}{\textwidth}{l l L}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Reason} \\
+\midrule
+\code{FLTMODEx} & \code{GUIDED} (4) on one switch position & The laptop can steer only in GUIDED \\
+\code{EK3_SRC1_POSXY} & 0 (none) or 4 (optical flow) & No GNSS indoors \\
+\code{EK3_SRC1_POSZ} & 1 (baro) or 2 (rangefinder) & Height source \\
+\code{AHRS_GPS_USE} & 0 & Do not use GPS \\
+\code{ARMING_CHECK} & 1048558 & Skips GPS/compass checks that otherwise block arming (\code{PreArm: Need 3D Fix}) \\
+RC-loss, battery failsafes & per vehicle & Must land/hold without GNSS \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Sensor extrinsic calibration}
+\label{sec:build-calib}
+
+The mount transforms in \code{navigation_real.launch.py} are placeholders:
+LiDAR $(0,0,-0.15)$\,m and camera $(0.10,0,0.05)$\,m, both with zero rotation.
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item Measure the translation from the flight controller's centre to the LiDAR's
+    optical centre and to the camera, in FLU axes.
+  \item Measure the LiDAR's yaw relative to the airframe's forward axis. The receiver
+    also exposes \code{angle_offset_deg} and \code{clockwise_input}.
+  \item Edit the static transform arguments, rebuild (\code{colcon build}), relaunch.
+  \item Validate. With the vehicle carried slowly by hand past walls, the scan must
+    stay registered to the costmap. \topic{/metrics/costmap/local/scan_agreement}
+    should remain close to 1, and a value well below 1 indicates a wrong mount yaw or
+    timing.
+\end{enumerate}
+Optical-flow sign errors are corrected on the autopilot (\code{FLOW_ORIENT_YAW}), or
+for a pure $x$ flip with the bridge parameter \code{optical_flow_scale}$=-1$.

@@ -1,0 +1,139 @@
+%% ---------------------------------------------------------------------
+\section{Introduction and hardware in context}
+\label{sec:intro}
+
+\subsection{The GPS-denied navigation problem}
+
+Small multirotor UAVs estimate their state by fusing a low-cost micro-electro-mechanical
+(MEMS) inertial measurement unit (IMU) with GNSS position and velocity
+\cite{groves2013principles}. GNSS is routinely unavailable or untrustworthy: signals
+are blocked in mines, tunnels and buildings, degraded in urban canyons and beneath
+foliage, and can be deliberately jammed or spoofed \cite{humphreys2008spoofing}.
+When the absolute fix disappears, the vehicle must dead-reckon on the IMU, and the
+error of a strapdown solution grows rapidly \cite{titterton2004strapdown}. For an
+uncompensated accelerometer bias $\mathbf{b}_a$, double integration gives a position
+error
+\begin{equation}
+  \delta\mathbf{p}(t) \;\approx\; \tfrac{1}{2}\,\mathbf{b}_a\,t^{2},
+  \label{eq:bias-drift}
+\end{equation}
+while a small attitude error $\delta\theta$ projects gravity into the horizontal
+channel, adding $\tfrac12 g\,\delta\theta\,t^2$ \cite{titterton2004strapdown}. A residual bias of
+only \SI{1}{\milli\gacc} (\SI{9.8e-3}{\metre\per\second\squared}) produces roughly
+\SI{0.5}{\metre} of error after \SI{10}{\second} and \SI{18}{\metre} after one minute. \Cref{sec:val-dr} confirms this growth on data
+from the prototype's own autopilot. A GPS-denied navigation system must therefore
+provide an \emph{exteroceptive} reference (vision, range, radio or field-map matching)
+that bounds this drift, together with a means of detecting and avoiding obstacles in
+unknown surroundings.
+
+\subsection{Formal statement}
+
+Following our problem statement, the vehicle state at time $t$ is
+\begin{equation}
+  \mathbf{x}_t = \left[\,\mathbf{p}_t,\;\mathbf{v}_t,\;\mathbf{q}_t,\;\mathbf{b}_a,\;\mathbf{b}_g\,\right],
+\end{equation}
+comprising position, velocity, attitude quaternion, and accelerometer and gyroscope
+biases. Given control/IMU inputs $\mathbf{u}_t$ and exteroceptive measurements
+$\mathbf{z}_{t,k}$ (camera features, LiDAR ranges, flow, rangefinder), the
+maximum-a-posteriori trajectory is
+\begin{equation}
+  \mathbf{x}^{*}_{0:T} = \arg\max_{\mathbf{x}_{0:T}}\;
+  p(\mathbf{x}_0)\prod_{t=1}^{T} p(\mathbf{x}_t\mid\mathbf{x}_{t-1},\mathbf{u}_t)
+  \prod_{k} p(\mathbf{z}_{t,k}\mid\mathbf{x}_t),
+  \label{eq:map}
+\end{equation}
+which is solved recursively by an extended Kalman filter (EKF) or in batch by
+factor-graph optimisation \cite{dellaert2017factor}. In the present prototype the
+recursive solution is delegated to the autopilot's EKF3 where it is available, and a
+lightweight dead-reckoning front-end on the ground computer supplies the planner when
+it is not (\cref{sec:design-odom}).
+
+\subsection{Target performance}
+
+We set the key performance indicators (KPIs) in \cref{tab:kpi}. They are
+\emph{targets for the final onboard system}. \Cref{sec:discussion} reports how far the
+current prototype has been verified against each.
+
+\begin{table}[H]
+\centering\small
+\caption{Project KPIs (from \code{docs/PROBLEM_STATEMENT.md}).}
+\label{tab:kpi}
+\begin{tabularx}{\textwidth}{l l L}
+\toprule
+\textbf{Metric} & \textbf{Target} & \textbf{Typical fallback without GNSS} \\
+\midrule
+Trajectory error & $<0.5\%$ of distance flown & $>10\%$ \\
+Hover drift & $\le\pm\SI{5}{\centi\metre}$ over \SI{10}{\minute} & $\ge\SI{2}{\metre}$ per minute \\
+Update rate & state $\ge\SI{100}{\hertz}$, vision $\ge\SI{30}{\hertz}$ & dropped frames break the filter \\
+Compute power & $\le\SI{15}{\watt}$, onboard & needs off-board computing \\
+Illumination & \SIrange{0}{10000}{lux} and above & fails below \SI{50}{lux} \\
+Endurance & $\ge\SI{30}{\minute}$ (objective 8) & -- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Background and related work}
+
+\paragraph{Exteroceptive references} Visual and visual--inertial odometry and SLAM
+(e.g.\ VINS-Mono \cite{qin2018vins}, ORB-SLAM3 \cite{campos2021orbslam3}) achieve
+sub-percent drift with light, inexpensive cameras, but fail in darkness, smoke and on
+textureless surfaces. Downward optical-flow sensors with a rangefinder
+\cite{honegger2013px4flow} give metric velocity at negligible compute cost but no map.
+2D and 3D LiDAR provide illumination-independent geometry and support occupancy-grid
+SLAM \cite{macenski2021slamtoolbox} at a weight and power cost. Radio beacons (UWB),
+fiducials, magnetic-anomaly (MAGNAV) and terrain-referenced (TERCOM) navigation need
+prior infrastructure or maps. Surveys of the space include \cite{balamurugan2016survey}.
+
+\paragraph{Open robotics middleware} ROS~2 \cite{macenski2022ros2} with the Nav2
+navigation stack \cite{macenski2020marathon} offers costmaps, global planners, local
+controllers such as the dynamic window approach \cite{fox1997dwa}, and behaviour-tree
+mission logic \cite{colledanchise2018bt}. PX4 \cite{meier2015px4} and ArduPilot
+\cite{ardupilot} are the dominant open autopilots, communicating over MAVLink
+\cite{koubaa2019mavlink}.
+
+\paragraph{Gap} Integrated, documented, reproducible GPS-denied systems for hobby-grade
+multirotors are rare. Commercial modules with onboard VIO exist but are closed, costly
+or discontinued. Academic systems are typically tied to bespoke airframes and high-end
+compute. There is a practical need for an \emph{incremental} path: a system that can be
+assembled from parts already found in student laboratories, that exposes every signal
+for inspection, and that can migrate towards fully onboard processing.
+
+\subsection{Contribution}
+
+Our main contributions are:
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item a structured trade study of 15 GPS-denied navigation modalities with
+    multi-criteria scoring for three mission profiles (\cref{sec:design-trade});
+  \item a companion-computer architecture that adds 2D LiDAR, optical-flow odometry,
+    Nav2 planning and semantic perception to an unmodified ArduPilot vehicle, using
+    only USB connections on the airframe (\cref{sec:arch});
+  \item a latency-engineered Wi-Fi link with single-datagram encodings, QoS marking,
+    clock synchronisation and per-stream health metrics (\cref{sec:design-link});
+  \item a layered command-safety design: arming and mode gating, speed clamping,
+    stale-command stop, a vibration guard and pilot override (\cref{sec:design-safety});
+  \item a hybrid YOLO--SAM segmentation module with explicit mask-quality gates and
+    unit tests (\cref{sec:design-perception});
+  \item a reproducible PX4/Gazebo simulation environment, including a generated office
+    world and frontier exploration (\cref{sec:op-sim});
+  \item a clear account of what we have and have not yet verified
+    (\cref{sec:validation,sec:discussion}).
+\end{enumerate}
+
+\subsection{Prototype versus design target}
+\label{sec:proto-vs-target}
+
+We describe two hardware configurations, and it is worth keeping them apart:
+\begin{description}[leftmargin=1em,itemsep=2pt]
+  \item[Current prototype (implemented).] F450 quadrotor with a Pixhawk~6C running ArduPilot, YDLIDAR G2, USB
+    camera and autopilot-attached optical flow/rangefinder. A Raspberry Pi streams the
+    sensor data to a GPU laptop, which performs estimation, planning and perception.
+    All software in \cref{sec:arch,sec:design,sec:build,sec:operation} refers to this
+    configuration.
+  \item[Design target (specified, not yet built).] A SC132GS stereo camera,
+    Raspberry Pi~5 (8\,GB), Holybro Kakute H7 running PX4 and an ELRS radio link, with
+    \emph{all} processing onboard (\cref{tab:bom-target}). Our timeline
+    (\cref{tab:timeline}) places this in phases~1--6.
+\end{description}
+Off-board processing is not part of the final design. We use the ground laptop as a
+development step, because it lets us watch every intermediate signal while the
+algorithms are still being tuned.

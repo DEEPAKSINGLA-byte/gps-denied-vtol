@@ -1,0 +1,49 @@
+%% ---------------------------------------------------------------------
+\section*{Specifications table}
+\addcontentsline{toc}{section}{Specifications table}
+
+\vspace{-1mm}
+\begingroup
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{p{0.22\textwidth} L}
+\toprule
+Hardware name & GPS-Denied Autonomous UAV Navigation Stack (\code{gps-denied-vtol}) \\
+Subject area & Engineering and material science; Robotics; Aerospace (unmanned aerial systems) \\
+Hardware type & Field measurements and sensors; Robotics and automation; Electrical engineering and computer science \\
+Closest commercial analog & No single equivalent. Partial analogues: ModalAI VOXL~2 (onboard VIO), Holybro PX4 Vision kit, Intel RealSense T265 tracking camera (discontinued) \\
+Open-source licence & Software: MIT License. Hardware documentation: CERN-OHL-P v2 \\
+Cost of hardware & Design target bill of materials: \INR{45{,}678.66} (\cref{tab:bom-target}). Prototype purchases: \INR{52{,}714} (\cref{tab:bom-spend}), plus lab-stock autopilot, LiDAR, camera and battery. \\
+Source file repository & \url{https://github.com/DEEPAKSINGLA-byte/gps-denied-vtol} (an archived release with DOI will be created on acceptance) \\
+\bottomrule
+\end{tabularx}\par
+\endgroup
+
+\begin{table}[H]
+\centering
+\small
+\caption{Key technical parameters of the current prototype, as built and configured. Values are configuration limits or measured quantities, as indicated.}
+\label{tab:keyparams}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{p{0.36\textwidth} L}
+\toprule
+\textbf{Parameter} & \textbf{Value (source)} \\
+\midrule
+Flight controller / firmware & Holybro Pixhawk~6C, ArduPilot (ArduCopter), MAVLink over USB @ 115\,200 baud \\
+Airframe / propulsion & F450 quadrotor, A2212 \SI{1000}{KV} motors, \SI{30}{\ampere} ESCs, 1045 propellers, 3S \SI{2200}{\milli\ampere\hour} LiPo \\
+Companion computer & Raspberry Pi~5 (4\,GB), Linux, Python~3 (no ROS on the vehicle) \\
+Ground computer & Laptop, Ubuntu 22.04, ROS~2 Humble, NVIDIA RTX~4050 Laptop GPU \\
+Exteroceptive sensors & YDLIDAR G2 2D LiDAR (\SIrange{0.12}{16}{\metre} accepted, 1\textdegree{} bins); downward optical flow + rangefinder via autopilot; USB~2.0 UVC camera, 640$\times$480 MJPEG \\
+Telemetry to ground & UDP JSON, event-driven, up to \SI{30}{\hertz}, $\le$\SI{1400}{B} per datagram \\
+LiDAR to ground & UDP binary, \SI{1094}{B} per revolution; $\approx$\SI{7}{\hertz} at \code{/scan} (documented) \\
+Video to ground & TCP, JPEG $q{=}70$, \SI{20}{fps} requested; $\approx$\SI{15}{\hertz} at \code{/camera/image_raw} (documented, camera-limited) \\
+Command uplink & UDP JSON $\rightarrow$ \code{SET_POSITION_TARGET_LOCAL_NED} (velocity + yaw rate) \\
+Command safety envelope & Armed \emph{and} \code{GUIDED} only; $|v_{xy}| \le \SI{0.5}{\metre\per\second}$; \SI{0.5}{\second} stale-command stop; never auto-arms \\
+Planner / controller & Nav2: NavFn global planner (\SI{5}{\hertz}), DWB holonomic controller (\SI{10}{\hertz}) \\
+Costmaps & Rolling, \SI{0.05}{\metre} cells; local $8\times8$\,m, global $20\times20$\,m; robot radius \SI{0.25}{\metre}; inflation \SI{0.40}{\metre} \\
+Perception & YOLOv8n-seg + SAM~2.1-tiny box-prompted refinement; measured \SI{31.6}{\milli\second}/frame at SAM \SI{768}{px} (\cref{sec:val-seg}) \\
+Simulation & PX4 SITL + Gazebo Harmonic; x500 with 2D LiDAR; Baylands park and generated 24$\times$16\,m office world \\
+\bottomrule
+\end{tabularx}
+\end{table}

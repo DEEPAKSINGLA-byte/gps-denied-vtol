@@ -1,0 +1,171 @@
+%% ---------------------------------------------------------------------
+\section{Design files summary}
+\label{sec:designfiles}
+
+All design files are in our repository. The system is defined almost
+entirely by software and configuration. There are no custom PCBs and no
+custom-fabricated parts: the sensors are fixed to the F450 frame with standard mounting
+hardware (\cref{fig:hwphoto}), so no CAD files are required.
+\Cref{tab:designfiles} lists the principal files. Third-party packages
+(\code{m-explore-ros2}, \code{px4_msgs}) keep their upstream licences.
+
+\begin{longtable}{p{5.6cm} p{2.0cm} p{2.1cm} p{4.6cm}}
+\caption{Design files summary. Paths are relative to the repository root.
+Licence: not yet chosen by the authors (see Specifications table).}
+\label{tab:designfiles}\\
+\toprule
+\textbf{Design file} & \textbf{Type} & \textbf{Runs on} & \textbf{Purpose} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Design file} & \textbf{Type} & \textbf{Runs on} & \textbf{Purpose} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{raspberry_pi/start_streams.py} & Python & Pi & Supervisor: telemetry, LiDAR, camera, command streams; Wi-Fi power save; clock sync \\
+\code{raspberry_pi/pixhawk_controller.py} & Python & Pi & MAVLink library: discovery, reconnection, arm/mode, telemetry extraction, flow conversion \\
+\code{raspberry_pi/telemetry_streamer.py} & Python & Pi & Event-driven JSON telemetry, raw MAVLink, arm/mode command listener \\
+\code{raspberry_pi/lidar_udp_streamer.py} & Python & Pi & YDLIDAR G2 protocol parser and binary UDP streamer \\
+\code{raspberry_pi/camera_streamer.py} & Python & Pi & Low-latency MJPEG/JPEG TCP camera streamer \\
+\code{raspberry_pi/mavlink_cmd_listener.py} & Python & Pi & Gated velocity-setpoint forwarder (FLU$\rightarrow$NED) \\
+\code{raspberry_pi/vibration_motor_halt.py} & Python & Pi/laptop & Vibration guard with RC override \\
+\code{raspberry_pi/99-pixhawk.rules}, \code{98-camera.rules} & udev & Pi & Persistent \code{/dev/pixhawk}, \code{/dev/camera} \\
+\code{raspberry_pi/setup_pi.sh} & Shell & Pi & One-time Pi provisioning \\
+\code{raspberry_pi/fake_pi.py} & Python & laptop & Synthetic telemetry/LiDAR for testing without a vehicle \\
+\code{ros2_ws/src/gps_denied_bridge/} & ROS~2 pkg & laptop & Bridges, metrics monitor, 3D mapper \\
+\code{ros2_ws/src/x500_navigation/config/nav2_real.yaml} & YAML & laptop & Nav2 parameters for the real vehicle \\
+\code{ros2_ws/src/x500_navigation/launch/navigation_real.launch.py} & Launch & laptop & One-command ground bring-up \\
+\code{ros2_ws/src/x500_navigation/behavior_trees/navigate_drone.xml} & BT XML & laptop & Drone-safe recovery tree \\
+\code{ros2_ws/src/x500_navigation/worlds/make_office_world.py} & Python & laptop & Generates \code{office.sdf} simulation world \\
+\code{ros2_ws/src/quadcopter_perception/} & ROS~2 pkg & laptop & Hybrid YOLO--SAM segmentation, tests \\
+\code{ros2_ws/src/x500_px4_bridge/} & ROS~2 pkg & laptop & Simulation PX4 bridge, safety filter, Gazebo bridge \\
+\code{scripts/setup_laptop_timeserver.sh} & Shell & laptop & \code{chrony} server set-up \\
+\code{scripts/analysis.py} & Python & any & Regenerates trade-study charts \\
+\code{report/scripts/*.py} & Python & laptop & Regenerate the validation figures and benchmark of this paper \\
+\code{docs/*.md} & Markdown & -- & Problem statement, objectives, solutions, setup, quick start, reference \\
+\end{longtable}
+
+%% ---------------------------------------------------------------------
+\section{Bill of materials}
+\label{sec:bom}
+
+\subsection{Design target (onboard configuration)}
+
+\Cref{tab:bom-target} gives our costed bill of materials for the fully onboard
+design target. Prices are in Indian rupees at the time of sourcing; links are in \code{docs/BOM.md}. The table covers the
+avionics and sensing payload only; the airframe and propulsion can be reused from the
+prototype (\cref{tab:bom-prototype}).
+
+\begin{table}[H]
+\centering\small
+\caption{Design-target bill of materials (\code{docs/BOM.md}).}
+\label{tab:bom-target}
+\begin{tabularx}{\textwidth}{r p{4.2cm} L r r}
+\toprule
+\# & \textbf{Component} & \textbf{Function} & \textbf{Qty} & \textbf{Cost (INR)} \\
+\midrule
+1 & SC132GS stereo camera & Visual odometry, depth for avoidance, point clouds, ArUco & 1 & 6{,}061.66 \\
+2 & Raspberry Pi~5, 8\,GB & Stereo depth, costmaps, avoidance, VO & 1 & 17{,}500.00 \\
+3 & Holybro Kakute H7 V1.3 & Flight controller (STM32H7) running PX4 & 1 & 10{,}217.00 \\
+4 & RadioMaster Pocket ELRS & Pilot transmitter, low-latency manual override & 1 & 7{,}000.00 \\
+5 & RadioMaster RP1 ELRS Nano & Onboard RC receiver & 1 & 2{,}600.00 \\
+6 & Tattu R-Line 850\,mAh 4S 150C & Flight battery ($\approx$\SI{10}{\minute} as recorded) & 1 & 2{,}300.00 \\
+\midrule
+\multicolumn{4}{r}{\textbf{Total}} & \textbf{45{,}678.66} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent\emph{Note.} The battery we listed
+($\approx$\SI{10}{\minute} flight) does not meet the $\ge$\SI{30}{\minute}
+endurance objective. Meeting that objective will need a larger battery and a
+re-evaluated payload budget (\cref{sec:limitations}).
+
+\subsection{Current prototype}
+
+\Cref{tab:bom-prototype} lists the components of the prototype we built and where each
+came from. \Cref{tab:bom-spend} lists everything we bought for it under the Design
+Practicum course, with prices including GST as invoiced. The total spend was
+\INR{52{,}714}. The Pixhawk~6C, YDLIDAR~G2, USB camera, flight battery and RC
+transmitter came from laboratory stock and were not purchased.
+
+\begin{table}[H]
+\centering\small
+\caption{Components of the implemented prototype.}
+\label{tab:bom-prototype}
+\begin{tabularx}{\textwidth}{p{3.3cm} L p{2.9cm}}
+\toprule
+\textbf{Component} & \textbf{Specification as used} & \textbf{Source} \\
+\midrule
+Flight controller & Holybro Pixhawk~6C, ArduPilot ArduCopter, USB MAVLink 115\,200 baud, anti-vibration mount & lab stock; mount \#3 \\
+Companion computer & Raspberry Pi~5 (4\,GB), 64\,GB microSD, aarch64 Linux, Python~3 & \#5, \#13 \\
+2D LiDAR & YDLIDAR G2, USB--serial 115\,200 baud, 360 bins & lab stock \\
+Optical flow + range & MTF-01 flow/range module on the autopilot & \#9 \\
+Camera & USB~2.0 UVC (Arkmicro \code{18ec:3399}), 640$\times$480 MJPEG & lab stock \\
+RC system & RadioMaster RP1 V2 ExpressLRS receiver on the autopilot & \#2; transmitter lab stock \\
+Airframe & F450 quadrotor kit (\SI{450}{\milli\metre}) with propeller guards & \#4, \#8 \\
+Propulsion & 4$\times$ A2212 \SI{1000}{KV} motors, 4$\times$ \SI{30}{\ampere} SimonK ESCs, 1045 propellers & \#16, \#10/\#12, \#14 \\
+Power & 3S \SI{2200}{\milli\ampere\hour} LiPo; \SI{5.3}{\volt}/\SI{3}{\ampere} power module & battery lab stock; \#7 \\
+Ground computer & Laptop, Ubuntu 22.04, NVIDIA RTX~4050 Laptop GPU & own \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Purchases for the prototype (Design Practicum, Group~66; prices in INR
+including GST, from the supplier invoices).}
+\label{tab:bom-spend}
+\begin{tabularx}{\textwidth}{r L r r l}
+\toprule
+\# & \textbf{Item} & \textbf{Qty} & \textbf{Cost (INR)} & \textbf{Use} \\
+\midrule
+1 & Pixhawk 2.4.8 flight controller & 1 & 8{,}201.00 & not used (Pixhawk~6C flown) \\
+2 & RadioMaster RP1 V2 ExpressLRS nano receiver & 1 & 3{,}032.60 & fitted \\
+3 & Anti-vibration mount for Pixhawk & 1 & 185.26 & fitted \\
+4 & F450 quadcopter frame kit & 1 & 895.62 & fitted \\
+5 & Raspberry Pi~5, 4\,GB & 1 & 15{,}540.60 & fitted \\
+6 & IMX219 camera module & 1 & 7{,}375.00 & not used (USB camera used) \\
+7 & \SI{5.3}{\volt} \SI{3}{\ampere} power module & 1 & 619.50 & fitted \\
+8 & F450 propeller guard set & 1 & 436.60 & fitted \\
+9 & MTF-01 optical-flow and ranging module & 1 & 5{,}864.60 & fitted \\
+10 & SimonK \SI{30}{\ampere} ESC, pack of 4 & 1 & 1{,}950.00 & fitted / spare \\
+11 & \SI{1800}{KV} brushless motor & 4 & 2{,}396.00 & not used \\
+12 & SimonK \SI{30}{\ampere} ESC & 5 & 1{,}595.00 & fitted / spare \\
+13 & SanDisk Ultra 64\,GB microSD card & 1 & 1{,}899.00 & fitted \\
+14 & 1045 propellers (CW + CCW pair) & 4 & 380.00 & fitted \\
+15 & CP2102 USB--UART adapter & 2 & 258.00 & set-up and debugging \\
+16 & A2212 \SI{1000}{KV} brushless motor & 5 & 2{,}075.00 & 4 fitted, 1 spare \\
+-- & Marketplace fees and invoice rounding & -- & 10.22 & -- \\
+\midrule
+\multicolumn{3}{r}{\textbf{Total}} & \textbf{52{,}714.00} & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Of the total, \INR{17{,}972} went on items that did not end up on the vehicle
+(\#1, \#6, \#11).
+
+\subsection{Software bill of materials}
+
+\begin{table}[H]
+\centering\small
+\caption{Principal software dependencies.}
+\label{tab:sbom}
+\begin{tabularx}{\textwidth}{l l L}
+\toprule
+\textbf{Component} & \textbf{Version} & \textbf{Use} \\
+\midrule
+Ubuntu / ROS~2 & 22.04 / Humble & Ground middleware \\
+Nav2, SLAM Toolbox & Humble releases & Planning, costmaps; SLAM in simulation \\
+ArduPilot & ArduCopter (GUIDED mode) & Prototype autopilot \\
+PX4 + Gazebo Harmonic & PX4 \code{main}, gz 8 & Simulation \\
+pymavlink, pyserial & $\ge$2.4.40, $\ge$3.5 & Companion MAVLink and serial \\
+OpenCV, NumPy & distribution packages & Camera, image transport \\
+Ultralytics & 8.4.70 (benchmark host) & YOLOv8n-seg, SAM~2.1 inference \\
+PyTorch / CUDA & 2.5.1 / 12.1 (benchmark host) & GPU inference \\
+chrony, iw & distribution packages & Clock sync, Wi-Fi power management \\
+\bottomrule
+\end{tabularx}
+\end{table}

@@ -1,0 +1,145 @@
+%% ---------------------------------------------------------------------
+\section{Operation instructions}
+\label{sec:operation}
+
+\subsection{Start-up sequence}
+
+The ground computer must be started first, because the camera stream is a TCP
+connection initiated by the Pi towards a listening laptop.
+\Cref{fig:opflow} summarises the procedure.
+
+\begin{lstlisting}[language=bash]
+# 1. Laptop
+cd ~/gps-denied-vtol/ros2_ws && source install/setup.bash
+ros2 launch x500_navigation navigation_real.launch.py pi_ip:=<pi_ip>
+#    options: camera:=false segmentation:=false rviz:=false map3d:=false
+#             seg_sam_imgsz:=768|1024  seg_sam_model:=none
+
+# 2. Raspberry Pi
+ssh <user>@<pi_ip>
+cd ~/raspberry_pi && python3 start_streams.py --nav-cmds
+#    look for: "clock synced to laptop ... offset ..."
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4mm]
+  \node[term] (a) {Props off (first time)};
+  \node[proc, below=of a] (b) {Laptop: \code{navigation_real.launch.py}};
+  \node[proc, below=of b] (c) {Pi: \code{start_streams.py --nav-cmds}};
+  \node[dec, below=of c] (d) {RViz status OK?\\rates nominal?};
+  \node[proc, right=12mm of d, minimum width=30mm] (fix) {troubleshoot\\(\cref{tab:troubleshoot})};
+  \node[proc, below=of d] (e) {hand-carry test: scan\\stays registered to map};
+  \node[proc, below=of e] (f) {RC: arm, take off (\code{ALT_HOLD})};
+  \node[proc, below=of f] (g) {RC: switch to \code{GUIDED}};
+  \node[proc, below=of g] (h) {RViz: Nav2 Goal};
+  \node[dec, below=of h] (i) {anomaly?};
+  \node[proc, right=12mm of i, minimum width=30mm] (j) {RC: switch out\\of \code{GUIDED}};
+  \node[term, below=of i] (k) {RC: land, disarm; Ctrl-C Pi, then laptop};
+  \draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d);
+  \draw[arr] (d)--node[lbl,above]{no}(fix); \draw[arr] (fix.north) |- (c.east);
+  \draw[arr] (d)--node[lbl,right]{yes}(e); \draw[arr] (e)--(f); \draw[arr] (f)--(g);
+  \draw[arr] (g)--(h); \draw[arr] (h)--(i);
+  \draw[arr] (i)--node[lbl,above]{yes}(j); \draw[arr] (j) |- (k.east);
+  \draw[arr] (i)--node[lbl,right]{no / goal reached}(k);
+\end{tikzpicture}
+\caption{Operating procedure for a supervised autonomous flight.}
+\label{fig:opflow}
+\end{figure}
+
+\subsection{Pre-flight checks}
+
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item RViz shows the scan, camera and both costmaps, and the diagnostics overlay
+    reads OK.
+  \item Nominal topic rates (documented in \code{docs/QUICKSTART.md}):
+    \topic{/odom} $\approx$\SI{30}{\hertz}, \topic{/scan} $\approx$\SI{7}{\hertz},
+    \topic{/camera/image_raw} $\approx$\SI{15}{\hertz} (camera-limited),
+    \topic{/segmentation/detections} $\approx$\SI{15}{\hertz}. Check with
+    \code{ros2 topic hz}.
+  \item Carried by hand, the vehicle moves in RViz and the scan stays aligned with the
+    costmap.
+  \item The RC override has been tested: switching out of \code{GUIDED} stops
+    autonomous motion.
+\end{itemize}
+
+\subsection{Flight}
+
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item Arm and take off with the RC transmitter. \code{ALT_HOLD} is recommended
+    first; \code{POSHOLD} requires optical flow.
+  \item Switch to \code{GUIDED} with the RC mode switch. The laptop cannot arm the
+    vehicle or change its mode for the pilot.
+  \item In RViz, set a \emph{Nav2 Goal}. The vehicle follows only while armed and in
+    \code{GUIDED}, at no more than \SI{0.5}{\metre\per\second}, and stops when
+    commands cease for \SI{0.5}{\second}.
+  \item To take over, switch out of \code{GUIDED}. Land and disarm with the RC, then
+    stop the Pi, then the laptop.
+\end{enumerate}
+Fly in visual line of sight, in a clear area, with a spotter, and never over people.
+
+\subsection{Monitoring and logging}
+
+Every health signal is a ROS topic under \topic{/metrics/} and can be plotted in
+PlotJuggler or \code{rqt_plot}. The 3D map is saved on shutdown to
+\code{~/drone_maps/map3d_*.ply}, or on demand with the \code{/map_3d/save} service.
+The Pi tool \code{sensor_telemetry.py --log flight.csv} records autopilot telemetry
+directly; this is how the bench data in \cref{sec:val-bench} were obtained.
+
+\subsection{ROS-free and bench tools}
+
+With the propellers removed, \code{drone_cli.py}, \code{arm_disarm.py} and
+\code{set_mode.py} arm, disarm and change mode. \code{arm_disarm.py --arm --force}
+bypasses pre-arm checks for bench use. \code{live_segmentation.py} and
+\code{camera_receiver.py} run perception or a viewer on the laptop without ROS.
+\code{fake_pi.py} replays synthetic telemetry and LiDAR into the ground stack for
+testing without hardware.
+
+\subsection{Troubleshooting}
+
+\begin{table}[H]
+\centering\small
+\caption{Common faults (\code{docs/QUICKSTART.md}, \code{raspberry_pi/README.md}).}
+\label{tab:troubleshoot}
+\begin{tabularx}{\textwidth}{p{4.3cm} L}
+\toprule
+\textbf{Symptom} & \textbf{Action} \\
+\midrule
+No \topic{/odom} & Is \code{start_streams.py} running, targeting the laptop IP? Open firewall: \code{ufw allow 14550:14553/udp}, \code{ufw allow 5000/tcp} \\
+\code{Timed out waiting for heartbeat} & Autopilot powered and enumerated? \code{ls -la /dev/pixhawk}; \code{test_connection.py} \\
+\code{Device or resource busy} & Another process owns the autopilot port (\code{lsof /dev/pixhawk}) \\
+No \topic{/scan} & LiDAR on \code{/dev/ttyUSB0}? (the supervisor retries) \\
+No camera & Start the laptop before the Pi; do not run stand-alone tools on the same port \\
+Goals ignored & Pi started with \code{--nav-cmds}? Vehicle armed \emph{and} in \code{GUIDED}? \\
+\code{Arming DENIED} & Read the reason; indoors apply \cref{tab:apparams} \\
+High latency & Disable Wi-Fi power save; direct link; smaller frames (\code{--camera-size 424x240}) \\
+Throttle locked at 40\% & Vibration guard tripped: release (\code{r}) or disarm (\code{d}), inspect propellers/motors \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Simulation}
+\label{sec:op-sim}
+
+The simulation uses PX4 SITL in Gazebo Harmonic, connected to ROS~2 by the
+Micro~XRCE-DDS agent. It is not ArduPilot. The apt \code{ros_gz_bridge} for Humble
+targets Gazebo Fortress and receives nothing from Harmonic, so we wrote a
+bridge built on Harmonic's Python transport bindings.
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item \code{ros2 launch x500_navigation sim_baylands.launch.py}: x500 with a
+    \SI{270}{\degree}, \SI{30}{\metre} 2D LiDAR in PX4's Baylands park, spawned in a tree
+    grove. The vehicle arms and climbs to \SI{2}{\metre} automatically. SLAM~Toolbox
+    maps and Nav2 plans; the bridge flies OFFBOARD at up to \SI{1}{\metre\per\second}.
+  \item \code{ros2 launch x500_navigation sim_office.launch.py}: a generated
+    $24\times16$\,m office (open-plan area, meeting room, kitchen, offices, server
+    room, \SI{2.5}{\metre} corridor, \SI{1.6}{\metre} doorways). Flight is at
+    \SI{1.5}{\metre} and \SI{0.5}{\metre\per\second}, with autonomous frontier
+    exploration \cite{yamauchi1997frontier} (\code{explore_lite}) that returns to the
+    lobby when no frontier remains.
+\end{itemize}
+The office was designed around the 2D LiDAR's blind spots. Furniture is either
+$\le$\SI{1.1}{\metre} tall (flown over and not seen) or $\ge$\SI{2}{\metre} tall (seen
+and avoided), with nothing in between. Flying below about \SI{1.3}{\metre} would allow
+collisions with furniture the LiDAR cannot see. In simulation, PX4's estimator still
+uses simulated GNSS: the LiDAR is used for mapping and avoidance, but is not fed back
+into the autopilot's state estimate.

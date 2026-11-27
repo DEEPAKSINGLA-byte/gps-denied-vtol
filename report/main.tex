@@ -1,0 +1,141 @@
+%% =====================================================================
+%%  GPS-Denied Autonomous UAV Navigation - HardwareX-style technical report
+%%  Compile with pdfLaTeX (Overleaf default). Main file: main.tex
+%% =====================================================================
+\documentclass[10pt,a4paper]{article}
+
+%% ---------- Packages -------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage[table]{xcolor}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.misc,fit,calc,backgrounds}
+\usepackage{hxstyle}          % journal-style layout (header band, fonts, captions, links)
+\usepackage{subcaption}
+
+\graphicspath{{figures/}}
+\setlength{\emergencystretch}{2em}   % fewer overfull lines with long identifiers
+\sisetup{detect-all, per-mode=symbol, range-phrase=--, range-units=single}
+\DeclareSIUnit\gacc{g}
+\newcommand{\INR}[1]{\mbox{INR~#1}}
+% \code{...}/\topic{...}: verbatim-safe monospace text that may break after '_' and '/'
+\ExplSyntaxOn
+\tl_new:N \l__rep_code_tl
+\cs_new_protected:Npn \__rep_code:n #1
+  {
+    \tl_set:Nx \l__rep_code_tl { \tl_to_str:n {#1} }
+    \exp_args:NNo \tl_replace_all:Nnn \l__rep_code_tl { \c_underscore_str }
+      { \c_underscore_str \allowbreak }
+    \tl_replace_all:Nnn \l__rep_code_tl { / } { / \allowbreak }
+    \texttt { \tl_use:N \l__rep_code_tl }
+  }
+\NewDocumentCommand \code  { m } { \__rep_code:n {#1} }
+\NewDocumentCommand \topic { m } { \__rep_code:n {#1} }
+\ExplSyntaxOff
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}p}
+
+\definecolor{blk1}{HTML}{257DE0}
+\definecolor{blk2}{HTML}{F47230}
+\definecolor{blk3}{HTML}{00B894}
+\definecolor{blk4}{HTML}{6A4CE2}
+\definecolor{softgray}{HTML}{F2F2F2}
+\definecolor{codebg}{HTML}{F7F7F7}
+
+\lstset{basicstyle=\ttfamily\footnotesize, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{black!25}, breaklines=true, columns=fullflexible,
+  keepspaces=true, showstringspaces=false, xleftmargin=2pt, xrightmargin=2pt}
+
+\tikzset{
+  blk/.style={draw, rounded corners=2pt, align=center, font=\footnotesize,
+              minimum height=8mm, inner sep=3pt, fill=white},
+  hw/.style={blk, fill=blk1!10, draw=blk1!80!black},
+  sw/.style={blk, fill=blk3!10, draw=blk3!70!black},
+  ext/.style={blk, fill=blk2!10, draw=blk2!80!black},
+  grp/.style={draw=black!45, dashed, rounded corners=4pt, inner sep=7pt},
+  arr/.style={-{Stealth[length=2.2mm]}, thick},
+  darr/.style={{Stealth[length=2.2mm]}-{Stealth[length=2.2mm]}, thick},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=1pt},
+  proc/.style={draw, rectangle, rounded corners=2pt, align=center, font=\footnotesize,
+               minimum width=36mm, minimum height=7mm, fill=blk1!8},
+  dec/.style={draw, diamond, aspect=2.4, align=center, font=\footnotesize,
+              inner sep=1pt, fill=blk2!10},
+  term/.style={draw, rounded rectangle, align=center, font=\footnotesize,
+               minimum width=26mm, minimum height=7mm, fill=blk3!12},
+}
+
+%% =====================================================================
+%%  Title block (see hxstyle.sty). Authors/affiliations are placeholders: they are
+%%  not recorded in the repository. Fill them in before circulating.
+%% =====================================================================
+\hxtopline{Technical report \textperiodcentered{} preprint, November 2026}
+\hxband{Technical report \textperiodcentered{} preprint \textperiodcentered{} not peer reviewed}
+       {GPS-Denied Autonomous UAV Navigation}
+       {GITHUB.COM/DEEPAKSINGLA-BYTE/GPS-DENIED-VTOL}
+\hxshortauthors{K. Halder, Deepak, K. Jain, P. Azad, R. Dey, Vamsi}
+\hxshorttitle{GPS-denied UAV navigation: technical report}
+
+\title{A low-cost, open-source companion-computer architecture for GPS-denied
+multirotor navigation: LiDAR--optical-flow sensing, Wi-Fi offloaded Nav2 planning
+and hybrid YOLO--SAM perception}
+%% Faculty advisor first, then student authors in alphabetical order of name;
+%% superscript letters = affiliations below.
+\newcommand{\aff}[1]{\textsuperscript{\color{hxlink}#1}}
+\author{Dr.~Kaushik Halder\aff{b,$\dagger$}, Deepak\aff{a}, Krish Jain\aff{b}, Pranit Azad\aff{b},
+  Reman Dey\aff{c}, Vamsi\aff{a}}
+\affiliations{%
+  \textsuperscript{a}School of Mechanical and Materials Engineering, Indian Institute of Technology Mandi, Kamand, Himachal Pradesh 175075, India\\
+  \textsuperscript{b}School of Computing and Electrical Engineering, Indian Institute of Technology Mandi, Kamand, Himachal Pradesh 175075, India\\
+  \textsuperscript{c}School of Physical Sciences, Indian Institute of Technology Mandi, Kamand, Himachal Pradesh 175075, India\\
+  \textsuperscript{$\dagger$}Faculty advisor}
+%% To mark a corresponding author: add ,$\ast$ to that author's \aff{...} and uncomment:
+%% \correspondence{\textsuperscript{$\ast$}\,Corresponding author. E-mail address: ...}
+
+\articleinfo{%
+  \textit{Report history:}\\
+  Version 1.0, 25 November 2026\\
+  Prepared in the HardwareX article format
+  \infosep
+  \textit{Keywords:}\\
+  GPS-denied navigation\\ Unmanned aerial vehicle\\ Companion computer\\ ROS~2 and Nav2\\
+  Optical flow\\ 2D LiDAR\\ MAVLink\\ Semantic segmentation\\ Open hardware
+  \infosep
+  \textit{Source repository:}\\
+  \href{https://github.com/DEEPAKSINGLA-byte/gps-denied-vtol}{github.com/DEEPAKSINGLA-byte/\\gps-denied-vtol}}
+\abstracttext{\input{sections/00_abstract}}
+
+%% =====================================================================
+\begin{document}
+
+\hxmaketitle
+
+\input{sections/00_specifications}
+\input{sections/01_introduction}
+\input{sections/02_architecture}
+\input{sections/03_design}
+\input{sections/04_design_files_bom}
+\input{sections/05_build}
+\input{sections/06_operation}
+\input{sections/07_validation}
+\input{sections/08_discussion}
+\input{sections/09_backmatter}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{references}
+
+\appendix
+\input{sections/10_appendix}
+
+\end{document}

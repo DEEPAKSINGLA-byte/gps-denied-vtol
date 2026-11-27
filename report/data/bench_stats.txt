@@ -1,0 +1,13 @@
+samples 243 duration_s 24.93 median_rate_hz 9.91 dt_mean_ms 103.0 dt_std_ms 17.0 dt_max_ms 302.6
+accel_x_mean_mg 199.1 std 4.47 gyro_x_mean_dps 0.096 std 0.547
+accel_y_mean_mg 14.3 std 5.93 gyro_y_mean_dps 0.03 std 0.592
+accel_z_mean_mg -983.6 std 3.29 gyro_z_mean_dps -0.053 std 1.733
+baro_pressure_std_hpa 0.0092 baro_alt_std_cm 8.46 baro_alt_pp_cm 36.82
+range_mean_cm 13.55 range_std_cm 0.507
+zupt_windows 237 stationary_fraction 0.962 acc_std_max_mg 10.4 acc_std_median_mg 1.58 gyro_mean_max_dps 6.45 gyro_mean_median_dps 0.43
+mean_residual_accel_ned_mps2 [-0.1461, 0.2375, -0.0315]
+dr_raw_horiz_err_end_m 86.5 dr_raw_3d_err_end_m 87.07
+dr_cal1s_horiz_err_end_m 4.56 dr_cal1s_3d_err_end_m 4.632
+dr_at_5s raw_h 3.554 cal_h 0.142
+dr_at_10s raw_h 14.166 cal_h 0.69
+dr_at_20s raw_h 56.075 cal_h 2.948

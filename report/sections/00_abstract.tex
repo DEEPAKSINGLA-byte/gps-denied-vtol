@@ -1,0 +1,25 @@
+%% Abstract text only; layout is set by \hxmaketitle in main.tex
+Multirotor UAVs lose their GNSS position indoors, underground, under tree canopy and
+when signals are jammed, and without an absolute fix inertial navigation drifts
+quadratically. We present a low-cost, open-source hardware and software system that
+gives a Pixhawk-class multirotor running ArduPilot an independent position and obstacle
+reference. A Raspberry Pi on the vehicle streams autopilot telemetry (including optical
+flow and rangefinder), 360\textdegree{} YDLIDAR~G2 scans and camera video over Wi-Fi
+to a ground laptop running ROS~2 Humble. There, odometry is reconstructed, Nav2 plans
+collision-free velocity commands, and a hybrid perception node refines YOLOv8 masks
+with Segment Anything~2.1. Commands return through a gated MAVLink path that acts only
+in armed \code{GUIDED} mode, is clamped to \SI{0.5}{\metre\per\second} and stops after
+\SI{0.5}{\second} without input. Our link optimisations cut command forwarding from
+\SI{54}{\milli\second} to \SI{1.4}{\milli\second} and telemetry-to-odometry delay from
+\SI{20}{\milli\second} to \SI{2}{\milli\second} (single host). We validated the system with a
+bench log of sensor noise and the zero-velocity detector, a dead-reckoning
+experiment (\SI{86.5}{\metre} error after \SI{25}{\second} uncompensated), a GPU
+perception benchmark (\SI{5.6}{\milli\second} YOLO-only, \SI{31.6}{\milli\second} with
+SAM), 17/17 passing unit tests, and 26 simulated flights (\SI{1.7}{h}) against Gazebo ground truth: speed
+limits held, height hold was within 3--\SI{14}{cm} RMS, and three explorations
+completed, while four office flights fell after propeller contact. On the real vehicle,
+Nav2 flew an autonomous square path around trees outdoors at night, and a
+\SI{7}{\minute} GNSS-free hover at \SI{2.5}{\metre} over grass drifted \SI{1.6}{\metre}, bounded but over 30 times the
+\SI{5}{\centi\metre} target; trajectory accuracy against ground truth is not yet
+measured. We also describe a fully onboard stereo-vision design
+(\INR{45{,}679} bill of materials) as the next step.
