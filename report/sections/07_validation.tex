@@ -200,29 +200,47 @@ the vehicle's \SI{15}{\hertz} camera, so perception is not the bottleneck. This 
 with our earlier drone-feed measurements (\SI{36}{\milli\second} and
 \SI{50}{\milli\second}). Run-to-run SD was below \SI{1}{\milli\second}.
 
-\paragraph{Qualitative output} \Cref{fig:seg} shows hybrid segmentation of a laboratory
-scene captured through the vehicle's camera stream. A partly visible object at the left edge is
-wrongly labelled \emph{car} (0.45), and the chairs have only moderate confidence
-(0.40--0.74). With the camera obstructed (c) the pipeline correctly returns nothing,
-illustrating the visual channel's dependence on a clear view.
+\paragraph{Qualitative output} \Cref{fig:seg} shows the same pipeline (deployed weights,
+\SI{640}{px} input) on a laboratory frame from the vehicle's camera stream and on five
+openly licensed photographs. In the lab
+frame a partly visible object at the left edge is wrongly labelled \emph{car} (0.45) and
+the chairs have only moderate confidence (0.40--0.74). Across the other scenes the
+pipeline finds 14 object classes, including people, animals, vehicles, furniture and
+tableware. Almost all masks are SAM-refined ([S]), and their boundaries follow animal
+legs, chair frames and vehicle outlines much more closely than YOLO's coarse masks would.
+Errors remain: some vegetables on the plate in (d) are labelled \emph{carrot}, and small
+or distant objects either fall back to YOLO masks ([Y]) or are missed.
 
 \begin{figure}[H]
 \centering
 \begin{subfigure}[t]{0.32\textwidth}
   \includegraphics[width=\linewidth]{segmented_result.jpg}
-  \caption{Annotated detections.}
+  \caption{Lab frame, vehicle camera stream.}
 \end{subfigure}\hfill
 \begin{subfigure}[t]{0.32\textwidth}
-  \includegraphics[width=\linewidth]{mask_overlay.jpg}
-  \caption{Foreground masks only.}
+  \includegraphics[width=\linewidth]{seg_iitmandi_stable.jpg}
+  \caption{Ponies near a stable.}
 \end{subfigure}\hfill
 \begin{subfigure}[t]{0.32\textwidth}
-  \includegraphics[width=\linewidth]{received_raw_matrix.jpg}
-  \caption{Obstructed camera frame.}
+  \includegraphics[width=\linewidth]{seg_iitmandi_guesthouse.jpg}
+  \caption{Guest house.}
+\end{subfigure}\\[4pt]
+\begin{subfigure}[t]{0.32\textwidth}
+  \includegraphics[width=\linewidth]{seg_iitmandi_food.jpg}
+  \caption{Dish at a restaurant.}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+  \includegraphics[width=\linewidth]{seg_cafe.jpg}
+  \caption{Caf\'e interior.}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+  \includegraphics[width=\linewidth]{seg_street.jpg}
+  \caption{Street scene.}
 \end{subfigure}
-\caption{Perception outputs saved by our stand-alone tools
-(\code{live_segmentation.py --verify}, \code{camera_receiver.py}) from the vehicle's
-camera stream (640$\times$480).}
+\caption{Hybrid YOLO--SAM segmentation output. [S] marks a SAM-refined mask, [Y] a YOLO
+fallback. Photographs (b)--(f) are from Wikimedia Commons, cropped to 4:3:
+(b, d) Timothy A.~Gonsalves; (c) Navneet Sharma; (e) Bahnfrend, all CC~BY-SA~4.0;
+(f) Colin Smith, CC~BY-SA~2.0. The annotated versions are shared under the same licences.}
 \label{fig:seg}
 \end{figure}
 
