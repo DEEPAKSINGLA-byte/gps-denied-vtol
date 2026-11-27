@@ -269,11 +269,11 @@ rest of the stack sees a single convention (\cref{fig:tf}).
 \centering
 \begin{tikzpicture}[node distance=4mm and 9mm, font=\footnotesize]
   \node[blk, fill=softgray] (map) {\code{map}};
-  \node[blk, fill=softgray, right=of map] (odom) {\code{odom}};
+  \node[blk, fill=softgray, right=13mm of map] (odom) {\code{odom}};
   \node[blk, fill=blk1!10, right=of odom] (base) {\code{base_link}};
   \node[blk, fill=blk3!10, above right=1mm and 9mm of base] (laser) {\code{laser_frame}};
   \node[blk, fill=blk3!10, below right=1mm and 9mm of base] (cam) {\code{camera_frame}};
-  \draw[arr, dashed] (map) -- node[lbl,above]{SLAM (sim)} (odom);
+  \draw[arr, dashed] (map) -- node[lbl,above]{SLAM} (odom);
   \draw[arr] (odom) -- node[lbl,above]{bridge} (base);
   \draw[arr] (base) -- node[lbl,above,sloped]{static} (laser);
   \draw[arr] (base) -- node[lbl,below,sloped]{static} (cam);

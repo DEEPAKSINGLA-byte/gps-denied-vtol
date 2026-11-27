@@ -85,23 +85,6 @@
 \end{tabularx}
 \end{table}
 
-\section{Reproducing the validation figures}
-\label{app:repro}
-
-\begin{lstlisting}[language=bash]
-cd gps-denied-vtol
-# segmentation timing (needs CUDA GPU, ultralytics, weights in ros2_ws/)
-python3 report/scripts/bench_segmentation.py --iters 100
-# bench-log figures, ZUPT and dead-reckoning analysis
-python3 report/scripts/make_figures.py      # writes report/figures/*.pdf, data/bench_stats.txt
-python3 report/scripts/make_extra_figures.py # latency, delivery, drift and KPI summary figures
-# segmentation unit tests
-cd ros2_ws/src/quadcopter_perception
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest test/test_hybrid_segmenter.py
-# trade-study charts
-python3 scripts/analysis.py
-\end{lstlisting}
-
 \section{Additional trade-study views}
 \label{app:trade}
 
@@ -127,8 +110,7 @@ Cost and robustness views of the screening data in \cref{tab:solutions}.
   \includegraphics[width=\linewidth]{10_update_rate_vs_drift.png}
   \caption{Update rate against drift (bubble size = mass).}
 \end{subfigure}
-\caption{Further views of the same trade-study dataset (\cref{tab:solutions}), from
-\code{scripts/analysis.py}. The values are screening estimates, not measurements.
+\caption{Further views of the same trade-study dataset (\cref{tab:solutions}). The values are screening estimates, not measurements.
 Axes with drift or cost use log scales.}
 \label{fig:trade2}
 \end{figure}

@@ -5,8 +5,7 @@
 \subsection{Scope and evidence levels}
 
 \Cref{tab:evidence} shows where each result comes from. Items marked \emph{logged}
-come with data in the repository, and their figures can be regenerated from
-\code{report/scripts/}. Items marked \emph{dev.\ notes} are measurements we took during
+come with data in the repository. Items marked \emph{dev.\ notes} are measurements we took during
 development without keeping the raw data. We tested the real vehicle in a \SI{7}{\minute} hover over grass, measured against ground marks, and
 in an autonomous square-path flight with obstacle avoidance (\cref{sec:val-hwdemo}).
 Simulation flights, with Gazebo ground truth, are analysed in \cref{sec:val-simlogs}.
@@ -165,9 +164,8 @@ meet the targets, which is why the design relies on flow, LiDAR and ZUPT.
 \subsection{Perception throughput}
 \label{sec:val-seg}
 
-\paragraph{Protocol} \code{report/scripts/bench_segmentation.py} instantiates the
-project's \code{HybridSegmenter} with the deployed weights
-(\code{yolov8n-seg.pt}, \code{sam2.1_t.pt}). It runs 10 warm-up and 100 timed
+\paragraph{Protocol} We instantiated our \code{HybridSegmenter} with the deployed weights
+(\code{yolov8n-seg.pt}, \code{sam2.1_t.pt}) and ran 10 warm-up and 100 timed
 iterations per configuration on one 640$\times$480 frame, the stream resolution, with
 CUDA synchronisation around each call. Host: NVIDIA RTX~4050 Laptop GPU, PyTorch 2.5.1
 (CUDA 12.1), Ultralytics 8.4.70, YOLO in FP16. Input: Ultralytics' \code{bus.jpg} at 640$\times$480 (four
@@ -343,10 +341,9 @@ safety filter (\cref{sec:design-safety}) and a single-instance guard against
 \paragraph{Data} A development session on 20 November 2026 left 34 PX4 ULog files;
 26 contain at least \SI{30}{s} armed in \code{OFFBOARD}, totalling \SI{6213}{s}
 (\SI{1.7}{h}): 9 office and 17 Baylands flights (six from the open-field spawn).
-\code{report/scripts/extract_sim_logs.py} extracts Gazebo ground truth, the EKF2
+From each log we extracted Gazebo ground truth, the EKF2
 estimate, the velocity setpoints, the LiDAR scan as PX4 sees it (72 sectors of
-\ang{5}) and the flight mode, resampled to \SI{5}{Hz}; \code{make_sim_figures.py}
-computes every number below. \code{explore_lite} logs give each exploration's start,
+\ang{5}) and the flight mode, resampled to \SI{5}{Hz}. \code{explore_lite} logs give each exploration's start,
 end and termination reason.
 
 Statistics run from \SI{15}{s} after \code{OFFBOARD} starts (excluding take-off) to its
